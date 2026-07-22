@@ -72,14 +72,14 @@ export default function RedirectCountdown({ targetUrl, shortCode }: RedirectCoun
             <h1 className="text-lg font-bold text-white">
               {secondsLeft > 0 ? `Redirecting in ${secondsLeft} seconds...` : 'Redirecting now...'}
             </h1>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-neutral-300">
               Holding brief delay to ensure target page loads completely.
             </p>
           </div>
 
           {/* Target Destination Box */}
           <div className="p-3 bg-neutral-950 border border-neutral-800/80 rounded-xl space-y-1 text-left">
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-neutral-500">
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-neutral-400">
               Destination Target
             </span>
             <p className="text-xs text-indigo-400 font-mono truncate font-medium">
@@ -101,7 +101,7 @@ export default function RedirectCountdown({ targetUrl, shortCode }: RedirectCoun
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-neutral-600 font-mono">
+      <footer className="py-4 text-center text-xs text-neutral-400 font-mono">
         Pendekin — Short Code: /{shortCode}
       </footer>
     </div>

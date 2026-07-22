@@ -17,7 +17,7 @@ export default function Home() {
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
             Pendekin - URL Shortener
           </h1>
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-neutral-300">
             Paste a long URL to generate a fast, clean short link.
           </p>
         </div>
@@ -25,8 +25,8 @@ export default function Home() {
         <UrlShortenerSection />
       </main>
 
-      {/* Minimal Footer */}
-      <footer className="py-4 text-center text-xs text-neutral-600 font-mono">
+      {/* Minimal Footer with WCAG AAA Compliant Text Contrast */}
+      <footer className="py-4 text-center text-xs text-neutral-400 font-mono">
         Pendekin — Fast & Minimal URL Shortener
       </footer>
     </div>

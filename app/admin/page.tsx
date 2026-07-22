@@ -151,7 +151,7 @@ export default function AdminDashboardPage() {
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
         <div className="flex flex-col items-center gap-3 text-center animate-in fade-in duration-200">
           <Logo size="lg" />
-          <div className="flex items-center gap-2 text-xs text-neutral-400 font-mono pt-2">
+          <div className="flex items-center gap-2 text-xs text-neutral-300 font-mono pt-2">
             <svg className="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -171,7 +171,7 @@ export default function AdminDashboardPage() {
           <Logo size="lg" />
           <div className="space-y-1">
             <h1 className="text-xl sm:text-2xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-neutral-300">
               Enter your Admin Secret Key to access global link management.
             </p>
           </div>
@@ -185,11 +185,11 @@ export default function AdminDashboardPage() {
                 onChange={(e) => setInputKey(e.target.value)}
                 placeholder="Enter secret key..."
                 disabled={loading}
-                className="w-full px-3.5 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-base sm:text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-indigo-500/80 min-h-[48px]"
+                className="w-full px-3.5 py-3 bg-neutral-950 border border-neutral-800 rounded-xl text-base sm:text-sm text-neutral-100 placeholder-neutral-400 focus:outline-none focus:border-indigo-500/80 min-h-[48px]"
                 required
               />
-              <p className="text-[11px] text-neutral-500 font-mono pt-1">
-                Default dev key: <code className="text-neutral-400">pendekin-admin-2026</code>
+              <p className="text-[11px] text-neutral-400 font-mono pt-1">
+                Default dev key: <code className="text-neutral-300">pendekin-admin-2026</code>
               </p>
             </div>
 
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
             </button>
           </form>
 
-          <a href="/" className="inline-block text-xs text-neutral-500 hover:text-neutral-300 min-h-[44px] py-2">
+          <a href="/" className="inline-block text-xs text-neutral-400 hover:text-neutral-200 min-h-[44px] py-2">
             ← Return to Shortener Main App
           </a>
         </div>
@@ -254,20 +254,20 @@ export default function AdminDashboardPage() {
         {/* Metric Summary Widgets (2x2 on Mobile, 4x1 on Desktop) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
           <div className="p-3.5 sm:p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-1">
-            <span className="text-[11px] sm:text-xs text-neutral-400 font-medium">Total Links</span>
+            <span className="text-[11px] sm:text-xs text-neutral-300 font-medium">Total Links</span>
             <p className="text-xl sm:text-2xl font-extrabold text-white font-mono">{stats.totalUrls}</p>
           </div>
           <div className="p-3.5 sm:p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-1">
-            <span className="text-[11px] sm:text-xs text-neutral-400 font-medium">Total Clicks</span>
+            <span className="text-[11px] sm:text-xs text-neutral-300 font-medium">Total Clicks</span>
             <p className="text-xl sm:text-2xl font-extrabold text-indigo-400 font-mono">{stats.totalClicks}</p>
           </div>
           <div className="p-3.5 sm:p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-1">
-            <span className="text-[11px] sm:text-xs text-neutral-400 font-medium">Active Links</span>
+            <span className="text-[11px] sm:text-xs text-neutral-300 font-medium">Active Links</span>
             <p className="text-xl sm:text-2xl font-extrabold text-emerald-400 font-mono">{stats.activeUrls}</p>
           </div>
           <div className="p-3.5 sm:p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-1">
-            <span className="text-[11px] sm:text-xs text-neutral-400 font-medium">Expired Links</span>
-            <p className="text-xl sm:text-2xl font-extrabold text-neutral-500 font-mono">{stats.expiredUrls}</p>
+            <span className="text-[11px] sm:text-xs text-neutral-300 font-medium">Expired Links</span>
+            <p className="text-xl sm:text-2xl font-extrabold text-neutral-400 font-mono">{stats.expiredUrls}</p>
           </div>
         </div>
 
@@ -279,15 +279,15 @@ export default function AdminDashboardPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search links, title, URL, or Client ID..."
-              className="w-full pl-9 pr-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-base sm:text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-indigo-500/80 min-h-[44px]"
+              className="w-full pl-9 pr-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-base sm:text-xs text-neutral-100 placeholder-neutral-400 focus:outline-none focus:border-indigo-500/80 min-h-[44px]"
             />
-            <svg className="w-4 h-4 text-neutral-500 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-neutral-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-neutral-500 shrink-0 font-medium">Filter:</span>
+            <span className="text-xs text-neutral-300 shrink-0 font-medium">Filter:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -303,7 +303,7 @@ export default function AdminDashboardPage() {
         {/* Links List: Mobile Responsive Cards (visible on mobile) */}
         <div className="block md:hidden space-y-3">
           {filteredUrls.length === 0 ? (
-            <div className="p-6 text-center text-neutral-500 text-xs bg-neutral-900 border border-neutral-800 rounded-xl">
+            <div className="p-6 text-center text-neutral-400 text-xs bg-neutral-900 border border-neutral-800 rounded-xl">
               No shortened links found matching your search filter.
             </div>
           ) : (
@@ -349,16 +349,16 @@ export default function AdminDashboardPage() {
                       </a>
                     </div>
 
-                    <span className="text-xs font-mono px-2.5 py-1 rounded bg-neutral-950 border border-neutral-800 shrink-0">
+                    <span className="text-xs font-mono px-2.5 py-1 rounded bg-neutral-950 border border-neutral-800 shrink-0 text-neutral-300">
                       {record.clicks} clicks
                     </span>
                   </div>
 
-                  <p className="text-xs text-neutral-400 font-mono truncate bg-neutral-950 p-2 rounded border border-neutral-800/80">
+                  <p className="text-xs text-neutral-300 font-mono truncate bg-neutral-950 p-2 rounded border border-neutral-800/80">
                     {record.original_url}
                   </p>
 
-                  <div className="flex items-center justify-between text-[11px] text-neutral-500 font-mono pt-1">
+                  <div className="flex items-center justify-between text-[11px] text-neutral-400 font-mono pt-1">
                     <span>
                       {isExpired ? (
                         <strong className="text-red-400">Expired</strong>
@@ -429,13 +429,13 @@ export default function AdminDashboardPage() {
         {/* Links Data Table (visible on desktop) */}
         <div className="hidden md:block bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-xl">
           {filteredUrls.length === 0 ? (
-            <div className="p-8 text-center space-y-2 text-neutral-500 text-xs">
+            <div className="p-8 text-center space-y-2 text-neutral-400 text-xs">
               <p>No shortened links found matching your search filter.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-neutral-950 text-neutral-400 font-mono uppercase tracking-wider text-[11px] border-b border-neutral-800">
+                <thead className="bg-neutral-950 text-neutral-300 font-mono uppercase tracking-wider text-[11px] border-b border-neutral-800">
                   <tr>
                     <th className="py-3 px-4">Webpage / Short Code</th>
                     <th className="py-3 px-4">Original Target URL</th>
@@ -494,7 +494,7 @@ export default function AdminDashboardPage() {
 
                         {/* Destination Target URL */}
                         <td className="py-3 px-4 max-w-[260px]">
-                          <p className="font-mono text-neutral-400 truncate" title={record.original_url}>
+                          <p className="font-mono text-neutral-300 truncate" title={record.original_url}>
                             {record.original_url}
                           </p>
                         </td>
@@ -513,13 +513,13 @@ export default function AdminDashboardPage() {
                               Expired
                             </span>
                           ) : record.expires_at ? (
-                            <p className="text-[11px] text-neutral-400 font-mono">
+                            <p className="text-[11px] text-neutral-300 font-mono">
                               Exp: {new Date(record.expires_at).toLocaleDateString()}
                             </p>
                           ) : (
-                            <p className="text-[11px] text-neutral-500 font-mono">Never</p>
+                            <p className="text-[11px] text-neutral-400 font-mono">Never</p>
                           )}
-                          <p className="text-[10px] text-neutral-500 font-mono">
+                          <p className="text-[10px] text-neutral-400 font-mono">
                             Added: {new Date(record.created_at).toLocaleDateString()}
                           </p>
                         </td>
@@ -527,11 +527,11 @@ export default function AdminDashboardPage() {
                         {/* Client ID */}
                         <td className="py-3 px-4">
                           {record.client_id ? (
-                            <span className="font-mono text-[11px] text-neutral-400 bg-neutral-950 px-2 py-1 rounded border border-neutral-800 truncate block max-w-[110px]" title={record.client_id}>
+                            <span className="font-mono text-[11px] text-neutral-300 bg-neutral-950 px-2 py-1 rounded border border-neutral-800 truncate block max-w-[110px]" title={record.client_id}>
                               {record.client_id.substring(0, 10)}...
                             </span>
                           ) : (
-                            <span className="text-neutral-600 font-mono text-[11px]">System</span>
+                            <span className="text-neutral-400 font-mono text-[11px]">System</span>
                           )}
                         </td>
 
@@ -540,7 +540,7 @@ export default function AdminDashboardPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setQrRecord(record)}
-                              className="p-1.5 text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded transition-colors cursor-pointer"
+                              className="p-1.5 text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded transition-colors cursor-pointer"
                               title="View QR Code"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

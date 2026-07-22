@@ -25,7 +25,7 @@ export default function ExpiredLink({ shortCode }: ExpiredLinkProps) {
 
           <div className="space-y-1">
             <h1 className="text-lg font-bold text-white">Link Has Expired</h1>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-neutral-300">
               The short link <span className="font-mono text-indigo-400">/{shortCode}</span> reached its expiration time and is no longer active.
             </p>
           </div>
@@ -40,7 +40,7 @@ export default function ExpiredLink({ shortCode }: ExpiredLinkProps) {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-neutral-600 font-mono">
+      <footer className="py-4 text-center text-xs text-neutral-400 font-mono">
         Pendekin — Expired Link
       </footer>
     </div>

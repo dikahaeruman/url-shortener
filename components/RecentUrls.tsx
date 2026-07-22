@@ -93,10 +93,10 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
   return (
     <div className="w-full max-w-xl mx-auto mt-8 text-left">
       <div className="flex items-center justify-between mb-3 px-1">
-        <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+        <span className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">
           Your Links
         </span>
-        <span className="text-xs text-neutral-500 font-mono">{urls.length} links</span>
+        <span className="text-xs text-neutral-400 font-mono">{urls.length} links</span>
       </div>
 
       <div className="bg-neutral-900 border border-neutral-800 rounded-xl divide-y divide-neutral-800/70 overflow-hidden">
@@ -130,7 +130,7 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
                       {record.title}
                     </span>
                   ) : (
-                    <span className="text-xs font-semibold text-neutral-400 font-mono truncate">
+                    <span className="text-xs font-semibold text-neutral-300 font-mono truncate">
                       {record.short_code}
                     </span>
                   )}
@@ -147,7 +147,7 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
                   >
                     /{record.short_code}
                   </a>
-                  <span className="text-xs text-neutral-400 font-mono px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800">
+                  <span className="text-xs text-neutral-300 font-mono px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800">
                     {record.clicks} clicks
                   </span>
                   {isExpired ? (
@@ -155,12 +155,12 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
                       Expired
                     </span>
                   ) : record.expires_at ? (
-                    <span className="text-[11px] font-mono text-neutral-500">
+                    <span className="text-[11px] font-mono text-neutral-400">
                       Expires: {new Date(record.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   ) : null}
                 </div>
-                <p className="text-xs text-neutral-500 truncate font-mono">
+                <p className="text-xs text-neutral-400 truncate font-mono">
                   {record.original_url}
                 </p>
               </div>
@@ -169,7 +169,7 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
               <div className="flex items-center gap-2 self-stretch sm:self-center shrink-0 pt-1 sm:pt-0">
                 <button
                   onClick={() => setQrRecord(record)}
-                  className="px-2.5 py-2 text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors cursor-pointer min-h-[44px] flex items-center justify-center"
+                  className="px-2.5 py-2 text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 rounded-md transition-colors cursor-pointer min-h-[44px] flex items-center justify-center"
                   title="View / Download QR Code"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -103,7 +103,7 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Paste your long URL here..."
             disabled={loading}
-            className="flex-1 bg-transparent px-3.5 py-3 text-base sm:text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none disabled:opacity-50 min-h-[48px]"
+            className="flex-1 bg-transparent px-3.5 py-3 text-base sm:text-sm text-neutral-100 placeholder-neutral-400 focus:outline-none disabled:opacity-50 min-h-[48px]"
             required
           />
           <button
@@ -131,13 +131,13 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
             <button
               type="button"
               onClick={() => setShowAlias(true)}
-              className="text-xs text-neutral-400 hover:text-indigo-400 transition-colors cursor-pointer min-h-[44px] flex items-center gap-1 font-medium"
+              className="text-xs text-neutral-300 hover:text-indigo-400 transition-colors cursor-pointer min-h-[44px] flex items-center gap-1 font-medium"
             >
               + Add custom alias (optional)
             </button>
           ) : (
             <div className="flex items-center gap-2 p-2 bg-neutral-900/80 border border-neutral-800 rounded-lg text-sm sm:text-xs min-h-[48px] flex-1">
-              <span className="text-neutral-500 font-mono pl-1 select-none">/</span>
+              <span className="text-neutral-400 font-mono pl-1 select-none">/</span>
               <input
                 type="text"
                 value={customCode}
@@ -145,7 +145,7 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
                 placeholder="custom-alias"
                 disabled={loading}
                 maxLength={30}
-                className="flex-1 bg-transparent text-neutral-200 font-mono placeholder-neutral-600 focus:outline-none py-1 text-base sm:text-xs"
+                className="flex-1 bg-transparent text-neutral-200 font-mono placeholder-neutral-400 focus:outline-none py-1 text-base sm:text-xs"
               />
               <button
                 type="button"
@@ -153,7 +153,7 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
                   setShowAlias(false);
                   setCustomCode('');
                 }}
-                className="text-neutral-500 hover:text-neutral-300 px-3 py-1 cursor-pointer min-h-[44px] flex items-center justify-center text-base"
+                className="text-neutral-400 hover:text-neutral-200 px-3 py-1 cursor-pointer min-h-[44px] flex items-center justify-center text-base"
                 aria-label="Remove custom alias"
               >
                 ✕
@@ -162,8 +162,8 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
           )}
 
           {/* Expiration Dropdown */}
-          <div className="flex items-center gap-1.5 text-xs text-neutral-400 min-h-[44px]">
-            <span className="text-neutral-500 shrink-0 font-medium">Expires:</span>
+          <div className="flex items-center gap-1.5 text-xs text-neutral-300 min-h-[44px]">
+            <span className="text-neutral-300 shrink-0 font-medium">Expires:</span>
             <select
               value={expiresIn}
               onChange={(e) => setExpiresIn(e.target.value as any)}
@@ -236,8 +236,8 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
               </button>
             </div>
           </div>
-          <p className="text-xs text-neutral-500 truncate">
-            Target: <span className="text-neutral-400 font-mono">{result.original_url}</span>
+          <p className="text-xs text-neutral-400 truncate">
+            Target: <span className="text-neutral-300 font-mono">{result.original_url}</span>
             {result.expires_at && (
               <span className="ml-2 text-indigo-400/80 font-mono">
                 (Expires: {new Date(result.expires_at).toLocaleString()})
