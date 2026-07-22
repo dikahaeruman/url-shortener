@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import Logo from '@/components/Logo';
 
 export default function ErrorPage({
@@ -18,9 +19,9 @@ export default function ErrorPage({
     <div className="min-h-screen flex flex-col items-center justify-between p-6 bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Header */}
       <header className="w-full max-w-xl flex items-center justify-between py-4">
-        <a href="/">
+        <Link href="/">
           <Logo size="md" />
-        </a>
+        </Link>
       </header>
 
       {/* Main Error Card */}
@@ -49,12 +50,12 @@ export default function ErrorPage({
             >
               Try Again
             </button>
-            <a
+            <Link
               href="/"
               className="w-full py-3 px-4 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs sm:text-sm font-semibold rounded-xl transition-colors min-h-[48px] flex items-center justify-center"
             >
               Return Home
-            </a>
+            </Link>
           </div>
         </div>
       </main>

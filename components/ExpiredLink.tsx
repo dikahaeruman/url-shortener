@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import Logo from './Logo';
 
 interface ExpiredLinkProps {
@@ -9,9 +10,9 @@ export default function ExpiredLink({ shortCode }: ExpiredLinkProps) {
     <div className="min-h-screen flex flex-col items-center justify-between p-6 bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Header */}
       <header className="w-full max-w-xl flex items-center justify-between py-4">
-        <a href="/">
+        <Link href="/">
           <Logo size="md" />
-        </a>
+        </Link>
       </header>
 
       {/* Main Expired Message */}
@@ -30,12 +31,12 @@ export default function ExpiredLink({ shortCode }: ExpiredLinkProps) {
             </p>
           </div>
 
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors"
           >
             Create a New Short Link
-          </a>
+          </Link>
         </div>
       </main>
 

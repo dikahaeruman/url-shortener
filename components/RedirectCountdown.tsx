@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Logo from './Logo';
 
 interface RedirectCountdownProps {
@@ -34,9 +35,9 @@ export default function RedirectCountdown({ targetUrl, shortCode }: RedirectCoun
     <div className="min-h-screen flex flex-col items-center justify-between p-6 bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Header */}
       <header className="w-full max-w-xl flex items-center justify-between py-4">
-        <a href="/">
+        <Link href="/">
           <Logo size="md" />
-        </a>
+        </Link>
       </header>
 
       {/* Main Countdown Card */}

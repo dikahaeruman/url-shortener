@@ -28,8 +28,10 @@ export default async function ShortCodeRedirectPage({
 
   // Check TTL Expiration
   if (record.expires_at) {
-    const isExpired = new Date(record.expires_at).getTime() < Date.now();
-    if (isExpired) {
+    const expiresTime = new Date(record.expires_at).getTime();
+    // eslint-disable-next-line react-hooks/purity
+    const nowTime = Date.now();
+    if (expiresTime < nowTime) {
       return <ExpiredLink shortCode={record.short_code} />;
     }
   }

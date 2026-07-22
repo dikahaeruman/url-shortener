@@ -159,7 +159,7 @@ describe('lib/utils - fetchTargetTitle', () => {
           headers: { 'Content-Type': 'text/html' },
         })
       )
-    ) as any;
+    ) as unknown as typeof fetch;
 
     const title = await fetchTargetTitle('https://example.com');
     expect(title).toBe('My Example Page');
@@ -175,7 +175,7 @@ describe('lib/utils - fetchTargetTitle', () => {
           status: 200,
         })
       )
-    ) as any;
+    ) as unknown as typeof fetch;
 
     const title = await fetchTargetTitle('https://example.com');
     expect(title).toBe('OG Title Example');
@@ -191,7 +191,7 @@ describe('lib/utils - fetchTargetTitle', () => {
           status: 200,
         })
       )
-    ) as any;
+    ) as unknown as typeof fetch;
 
     const title = await fetchTargetTitle('https://example.com');
     expect(title).toBe('Hello & World <Code>');
@@ -208,7 +208,7 @@ describe('lib/utils - fetchTargetTitle', () => {
           status: 200,
         })
       )
-    ) as any;
+    ) as unknown as typeof fetch;
 
     const title = await fetchTargetTitle('https://example.com');
     expect(title).toHaveLength(100);
@@ -219,7 +219,7 @@ describe('lib/utils - fetchTargetTitle', () => {
 
   test('returns null on HTTP error or network failure', async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = mock(() => Promise.reject(new Error('Network error'))) as any;
+    globalThis.fetch = mock(() => Promise.reject(new Error('Network error'))) as unknown as typeof fetch;
 
     const title = await fetchTargetTitle('https://unreachable-domain-99.com');
     expect(title).toBeNull();

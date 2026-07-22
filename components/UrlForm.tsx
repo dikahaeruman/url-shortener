@@ -166,7 +166,7 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
             <span className="text-neutral-300 shrink-0 font-medium">Expires:</span>
             <select
               value={expiresIn}
-              onChange={(e) => setExpiresIn(e.target.value as any)}
+              onChange={(e) => setExpiresIn(e.target.value as 'never' | '1h' | '24h' | '7d' | '30d')}
               className="bg-neutral-900 border border-neutral-800 text-neutral-200 text-xs rounded-md px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 cursor-pointer min-h-[40px] transition-colors"
             >
               <option value="never">Never</option>
@@ -190,7 +190,6 @@ export default function UrlForm({ onUrlCreated }: UrlFormProps) {
       {result && (
         <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-3 text-left transition-all duration-200">
           <div className="flex items-center gap-2 truncate">
-            {/* eslint-disable-next-html-image-element */}
             <img
               src={getFaviconUrl(result.original_url)}
               alt=""

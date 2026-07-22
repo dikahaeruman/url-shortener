@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import Logo from '@/components/Logo';
 
 export default function NotFound() {
@@ -5,9 +6,9 @@ export default function NotFound() {
     <div className="min-h-screen flex flex-col items-center justify-between p-6 bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
       {/* Top Header */}
       <header className="w-full max-w-xl flex items-center justify-between py-4">
-        <a href="/">
+        <Link href="/">
           <Logo size="md" />
-        </a>
+        </Link>
       </header>
 
       {/* Main 404 Card */}
@@ -34,12 +35,12 @@ export default function NotFound() {
           </div>
 
           {/* Action Button */}
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl transition-colors min-h-[48px] shadow-lg shadow-indigo-600/20"
           >
             ← Return to Pendekin Home
-          </a>
+          </Link>
         </div>
       </main>
 

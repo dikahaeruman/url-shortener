@@ -1,6 +1,5 @@
-import { describe, expect, test, mock } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { POST, GET, DELETE } from '../app/api/shorten/route';
-import { supabase } from '../lib/supabase';
 
 describe('app/api/shorten API Handlers - Edge Cases & Expiration Options', () => {
   test('POST processes valid URL with 1h expiration option', async () => {

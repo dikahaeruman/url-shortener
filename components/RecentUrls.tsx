@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import type { UrlRecord } from '@/lib/supabase';
 import { getOrCreateClientId, getFaviconUrl } from '@/lib/utils';
 import QrModal from './QrModal';
@@ -16,29 +16,38 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
-
-  const fetchRecentUrls = useCallback(async () => {
-    try {
-      const clientId = getOrCreateClientId();
-      const res = await fetch('/api/shorten', {
-        headers: {
-          'x-client-id': clientId,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUrls(data.urls || []);
-      }
-    } catch (err) {
-      console.error('Error fetching recent URLs:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [now] = useState<number>(() => Date.now());
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchRecentUrls = async () => {
+      try {
+        const clientId = getOrCreateClientId();
+        const res = await fetch('/api/shorten', {
+          headers: {
+            'x-client-id': clientId,
+          },
+        });
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          setUrls(data.urls || []);
+        }
+      } catch (err) {
+        console.error('Error fetching recent URLs:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     fetchRecentUrls();
-  }, [fetchRecentUrls, refreshTrigger]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshTrigger]);
 
   const copyToClipboard = async (id: string, shortCode: string) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -104,7 +113,7 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
           const isCopied = copiedId === record.id;
           const isDeleting = deletingId === record.id;
           const isConfirming = confirmId === record.id;
-          const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < Date.now() : false;
+          const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < now : false;
           const faviconUrl = getFaviconUrl(record.original_url);
 
           return (
@@ -116,7 +125,6 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
             >
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex items-center gap-2 truncate">
-                  {/* eslint-disable-next-html-image-element */}
                   <img
                     src={faviconUrl}
                     alt=""

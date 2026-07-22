@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import type { UrlRecord } from '@/lib/supabase';
 import { getFaviconUrl } from '@/lib/utils';
 import Logo from '@/components/Logo';
@@ -26,6 +27,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
+  const [now] = useState<number>(() => Date.now());
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -69,15 +71,26 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     const savedKey = sessionStorage.getItem(ADMIN_KEY_STORAGE);
     if (savedKey) {
-      setAdminKey(savedKey);
-      fetchAdminData(savedKey).finally(() => {
-        setIsInitializing(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchAdminData(savedKey).then((success) => {
+        if (isMounted && success) {
+          setAdminKey(savedKey);
+        }
+      }).finally(() => {
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       });
     } else {
       setIsInitializing(false);
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [fetchAdminData]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -129,7 +142,7 @@ export default function AdminDashboardPage() {
   };
 
   const filteredUrls = urls.filter((record) => {
-    const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < Date.now() : false;
+    const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < now : false;
 
     if (statusFilter === 'active' && isExpired) return false;
     if (statusFilter === 'expired' && !isExpired) return false;
@@ -208,9 +221,9 @@ export default function AdminDashboardPage() {
             </button>
           </form>
 
-          <a href="/" className="inline-block text-xs text-neutral-400 hover:text-neutral-200 min-h-[44px] py-2">
+          <Link href="/" className="inline-block text-xs text-neutral-400 hover:text-neutral-200 min-h-[44px] py-2">
             ← Return to Shortener Main App
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -221,9 +234,9 @@ export default function AdminDashboardPage() {
       {/* Top Admin Navbar (Touch-Optimized Responsive Stack) */}
       <header className="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 pb-4 sm:pb-6 border-b border-neutral-800/80">
         <div className="flex items-center gap-2.5">
-          <a href="/">
+          <Link href="/">
             <Logo size="md" />
-          </a>
+          </Link>
           <span className="text-[11px] sm:text-xs px-2.5 py-1 rounded-full bg-indigo-950/80 text-indigo-400 border border-indigo-900/60 font-semibold font-mono uppercase tracking-wider">
             Admin
           </span>
@@ -290,7 +303,7 @@ export default function AdminDashboardPage() {
             <span className="text-xs text-neutral-300 shrink-0 font-medium">Filter:</span>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'expired')}
               className="flex-1 sm:flex-none bg-neutral-950 border border-neutral-800 text-neutral-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer min-h-[44px]"
             >
               <option value="all">All Links ({urls.length})</option>
@@ -311,7 +324,7 @@ export default function AdminDashboardPage() {
               const isCopied = copiedId === record.id;
               const isDeleting = deletingId === record.id;
               const isConfirming = confirmId === record.id;
-              const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < Date.now() : false;
+              const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < now : false;
               const faviconUrl = getFaviconUrl(record.original_url);
 
               return (
@@ -324,7 +337,6 @@ export default function AdminDashboardPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-2 truncate">
-                        {/* eslint-disable-next-html-image-element */}
                         <img
                           src={faviconUrl}
                           alt=""
@@ -450,7 +462,7 @@ export default function AdminDashboardPage() {
                     const isCopied = copiedId === record.id;
                     const isDeleting = deletingId === record.id;
                     const isConfirming = confirmId === record.id;
-                    const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < Date.now() : false;
+                    const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < now : false;
                     const faviconUrl = getFaviconUrl(record.original_url);
 
                     return (
@@ -463,7 +475,6 @@ export default function AdminDashboardPage() {
                         {/* Title & Short Link */}
                         <td className="py-3 px-4 space-y-0.5 max-w-[200px]">
                           <div className="flex items-center gap-2 truncate">
-                            {/* eslint-disable-next-html-image-element */}
                             <img
                               src={faviconUrl}
                               alt=""
