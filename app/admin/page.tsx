@@ -7,6 +7,9 @@ import { getFaviconUrl } from '@/lib/utils';
 import Logo from '@/components/Logo';
 import QrModal from '@/components/QrModal';
 import FaviconImage from '@/components/FaviconImage';
+import UrlItemRow from '@/components/UrlItemRow';
+import { useCurrentTime } from '@/hooks/useCurrentTime';
+import { useOrigin } from '@/hooks/useOrigin';
 
 const ADMIN_KEY_STORAGE = 'pendekin_admin_key';
 
@@ -28,13 +31,14 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [now, setNow] = useState<number>(() => Date.now());
 
-  // Periodically update current timestamp every 30 seconds for live expiration accuracy
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(timer);
-  }, []);
+  const now = useCurrentTime();
+  const origin = useOrigin();
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
 
   const fetchAdminData = useCallback(async (keyToUse: string): Promise<boolean> => {
     setLoading(true);
@@ -110,8 +114,7 @@ export default function AdminDashboardPage() {
   };
 
   const copyToClipboard = async (id: string, shortCode: string) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const shortUrl = `${origin}/${shortCode}`;
+    const shortUrl = origin ? `${origin}/${shortCode}` : `/${shortCode}`;
     try {
       await navigator.clipboard.writeText(shortUrl);
       setCopiedId(id);
@@ -159,11 +162,6 @@ export default function AdminDashboardPage() {
 
     return matchCode || matchUrl || matchTitle || matchClient;
   });
-
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
 
   // Render Initial Session Verification Screen (Eliminates login page flicker on refresh)
   if (isInitializing) {
@@ -327,114 +325,18 @@ export default function AdminDashboardPage() {
               No shortened links found matching your search filter.
             </div>
           ) : (
-            filteredUrls.map((record) => {
-              const isCopied = copiedId === record.id;
-              const isDeleting = deletingId === record.id;
-              const isConfirming = confirmId === record.id;
-              const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < now : false;
-              const faviconUrl = getFaviconUrl(record.original_url);
-
-              return (
-                <div
-                  key={record.id}
-                  className={`p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-3 ${
-                    isExpired ? 'opacity-75' : ''
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2 truncate">
-                        <FaviconImage src={faviconUrl} />
-                        <span className="font-semibold text-sm text-neutral-200 truncate">
-                          {record.title || record.short_code}
-                        </span>
-                      </div>
-                      <a
-                        href={`/${record.short_code}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`font-mono text-sm font-semibold block ${
-                          isExpired ? 'text-neutral-400 line-through' : 'text-indigo-400'
-                        }`}
-                      >
-                        /{record.short_code}
-                      </a>
-                    </div>
-
-                    <span className="text-xs font-mono px-2.5 py-1 rounded bg-neutral-950 border border-neutral-800 shrink-0 text-neutral-300">
-                      {record.clicks} clicks
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-neutral-300 font-mono truncate bg-neutral-950 p-2 rounded border border-neutral-800/80">
-                    {record.original_url}
-                  </p>
-
-                  <div className="flex items-center justify-between text-[11px] text-neutral-400 font-mono pt-1">
-                    <span>
-                      {isExpired ? (
-                        <strong className="text-red-400">Expired</strong>
-                      ) : record.expires_at ? (
-                        `Exp: ${new Date(record.expires_at).toLocaleDateString()}`
-                      ) : (
-                        'Expires: Never'
-                      )}
-                    </span>
-                    <span>Client: {record.client_id ? record.client_id.substring(0, 8) : 'System'}</span>
-                  </div>
-
-                  {/* Touch Action Bar (Minimum 44px Touch Heights) */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-neutral-800/80">
-                    <button
-                      onClick={() => setQrRecord(record)}
-                      className="flex-1 py-2.5 px-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                      </svg>
-                      <span>QR</span>
-                    </button>
-
-                    <button
-                      onClick={() => copyToClipboard(record.id, record.short_code)}
-                      className={`flex-1 py-2.5 px-3 text-xs font-semibold rounded-lg transition-colors cursor-pointer min-h-[44px] flex items-center justify-center ${
-                        isCopied
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'
-                      }`}
-                    >
-                      {isCopied ? 'Copied' : 'Copy'}
-                    </button>
-
-                    {isConfirming ? (
-                      <div className="flex items-center gap-1 flex-1">
-                        <button
-                          onClick={() => handleDelete(record.id)}
-                          disabled={isDeleting}
-                          className="flex-1 py-2.5 px-2 text-xs font-semibold bg-red-600 hover:bg-red-500 text-white rounded-lg cursor-pointer min-h-[44px]"
-                        >
-                          {isDeleting ? '...' : 'Confirm'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmId(null)}
-                          disabled={isDeleting}
-                          className="px-3 py-2.5 text-xs text-neutral-400 hover:text-neutral-200 cursor-pointer min-h-[44px]"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmId(record.id)}
-                        className="py-2.5 px-3 text-xs font-medium text-neutral-400 hover:text-red-400 transition-colors cursor-pointer rounded-lg border border-neutral-800 min-h-[44px]"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })
+            filteredUrls.map((record) => (
+              <div key={record.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+                <UrlItemRow
+                  record={record}
+                  now={now}
+                  origin={origin}
+                  onDelete={handleDelete}
+                  onOpenQr={setQrRecord}
+                  showClientId={true}
+                />
+              </div>
+            ))
           )}
         </div>
 
@@ -605,8 +507,8 @@ export default function AdminDashboardPage() {
       {qrRecord && (
         <QrModal
           shortUrl={
-            typeof window !== 'undefined'
-              ? `${window.location.origin}/${qrRecord.short_code}`
+            origin
+              ? `${origin}/${qrRecord.short_code}`
               : `/${qrRecord.short_code}`
           }
           shortCode={qrRecord.short_code}
