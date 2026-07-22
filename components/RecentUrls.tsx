@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { UrlRecord } from '@/lib/supabase';
 import { getOrCreateClientId, getFaviconUrl } from '@/lib/utils';
 import QrModal from './QrModal';
+import FaviconImage from './FaviconImage';
 
 interface RecentUrlsProps {
   refreshTrigger?: number;
@@ -16,7 +17,13 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
-  const [now] = useState<number>(() => Date.now());
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  // Periodically update current timestamp every 30 seconds for live expiration accuracy
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -125,14 +132,7 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
             >
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex items-center gap-2 truncate">
-                  <img
-                    src={faviconUrl}
-                    alt=""
-                    className="w-4 h-4 rounded shrink-0 bg-neutral-800"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
+                  <FaviconImage src={faviconUrl} />
                   {record.title ? (
                     <span className="text-xs font-semibold text-neutral-200 truncate">
                       {record.title}

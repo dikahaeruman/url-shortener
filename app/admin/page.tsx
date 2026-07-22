@@ -6,6 +6,7 @@ import type { UrlRecord } from '@/lib/supabase';
 import { getFaviconUrl } from '@/lib/utils';
 import Logo from '@/components/Logo';
 import QrModal from '@/components/QrModal';
+import FaviconImage from '@/components/FaviconImage';
 
 const ADMIN_KEY_STORAGE = 'pendekin_admin_key';
 
@@ -27,12 +28,13 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
-  const [now] = useState<number>(() => Date.now());
+  const [now, setNow] = useState<number>(() => Date.now());
 
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
+  // Periodically update current timestamp every 30 seconds for live expiration accuracy
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchAdminData = useCallback(async (keyToUse: string): Promise<boolean> => {
     setLoading(true);
@@ -157,6 +159,11 @@ export default function AdminDashboardPage() {
 
     return matchCode || matchUrl || matchTitle || matchClient;
   });
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
 
   // Render Initial Session Verification Screen (Eliminates login page flicker on refresh)
   if (isInitializing) {
@@ -337,14 +344,7 @@ export default function AdminDashboardPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 space-y-1">
                       <div className="flex items-center gap-2 truncate">
-                        <img
-                          src={faviconUrl}
-                          alt=""
-                          className="w-4 h-4 rounded shrink-0 bg-neutral-800"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
+                        <FaviconImage src={faviconUrl} />
                         <span className="font-semibold text-sm text-neutral-200 truncate">
                           {record.title || record.short_code}
                         </span>
@@ -475,14 +475,7 @@ export default function AdminDashboardPage() {
                         {/* Title & Short Link */}
                         <td className="py-3 px-4 space-y-0.5 max-w-[200px]">
                           <div className="flex items-center gap-2 truncate">
-                            <img
-                              src={faviconUrl}
-                              alt=""
-                              className="w-4 h-4 rounded shrink-0 bg-neutral-800"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                              }}
-                            />
+                            <FaviconImage src={faviconUrl} />
                             <span className="font-semibold text-neutral-200 truncate">
                               {record.title || record.short_code}
                             </span>

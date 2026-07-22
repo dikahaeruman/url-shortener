@@ -36,12 +36,18 @@ export default async function ShortCodeRedirectPage({
     }
   }
 
-  // Increment click count in background
-  supabase
-    .from('urls')
-    .update({ clicks: (record.clicks || 0) + 1 })
-    .eq('id', record.id)
-    .then(() => {});
+  // Atomically increment click count in Database before redirect rendering
+  try {
+    const { error: rpcError } = await supabase.rpc('increment_url_clicks', { row_id: record.id });
+    if (rpcError) {
+      await supabase
+        .from('urls')
+        .update({ clicks: (record.clicks || 0) + 1 })
+        .eq('id', record.id);
+    }
+  } catch (err) {
+    console.error('Failed to increment click count:', err);
+  }
 
   return (
     <RedirectCountdown
