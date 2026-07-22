@@ -1,5 +1,6 @@
 services:
   pendekin:
+    image: pendekin:latest
     build:
       context: .
       dockerfile: Dockerfile
