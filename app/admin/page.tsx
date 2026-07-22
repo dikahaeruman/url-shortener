@@ -9,6 +9,7 @@ import QrModal from '@/components/QrModal';
 const ADMIN_KEY_STORAGE = 'pendekin_admin_key';
 
 export default function AdminDashboardPage() {
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [adminKey, setAdminKey] = useState<string>('');
   const [inputKey, setInputKey] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -31,7 +32,7 @@ export default function AdminDashboardPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
 
-  const fetchAdminData = useCallback(async (keyToUse: string) => {
+  const fetchAdminData = useCallback(async (keyToUse: string): Promise<boolean> => {
     setLoading(true);
     setAuthError(null);
     try {
@@ -53,6 +54,7 @@ export default function AdminDashboardPage() {
       );
       setIsAuthenticated(true);
       sessionStorage.setItem(ADMIN_KEY_STORAGE, keyToUse);
+      return true;
     } catch (err: unknown) {
       setIsAuthenticated(false);
       if (err instanceof Error) {
@@ -60,6 +62,7 @@ export default function AdminDashboardPage() {
       } else {
         setAuthError('Failed to load admin dashboard.');
       }
+      return false;
     } finally {
       setLoading(false);
     }
@@ -69,7 +72,11 @@ export default function AdminDashboardPage() {
     const savedKey = sessionStorage.getItem(ADMIN_KEY_STORAGE);
     if (savedKey) {
       setAdminKey(savedKey);
-      fetchAdminData(savedKey);
+      fetchAdminData(savedKey).finally(() => {
+        setIsInitializing(false);
+      });
+    } else {
+      setIsInitializing(false);
     }
   }, [fetchAdminData]);
 
@@ -138,7 +145,25 @@ export default function AdminDashboardPage() {
     return matchCode || matchUrl || matchTitle || matchClient;
   });
 
-  // Render Mobile & Desktop Touch Optimized Login Card
+  // Render Initial Session Verification Screen (Eliminates login page flicker on refresh)
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
+        <div className="flex flex-col items-center gap-3 text-center animate-in fade-in duration-200">
+          <Logo size="lg" />
+          <div className="flex items-center gap-2 text-xs text-neutral-400 font-mono pt-2">
+            <svg className="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <span>Verifying session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Login Card if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 bg-neutral-950 text-neutral-100 font-sans selection:bg-indigo-500 selection:text-white">
