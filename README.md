@@ -9,6 +9,7 @@ A simple, fast, and privacy-focused URL shortener built with Next.js and Supabas
 - **Instant QR Codes**: View and download high-res PNG QR codes for any short link.
 - **Auto Webpage Titles & Favicons**: Automatically fetches target page titles and domain favicons.
 - **Client Privacy**: Links are scoped per browser client using persistent UUID client headers.
+- **Admin Dashboard**: Protected console at `/admin` for viewing global metrics, searching, filtering, and managing all shortened links.
 - **Built-in Security**: Includes SSRF protections, loopback/private IP filtering, self-loop prevention, and Supabase Row Level Security (RLS).
 
 ## Tech Stack
@@ -31,6 +32,7 @@ Create a `.env.local` file in the project root:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-supabase-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+ADMIN_SECRET_KEY=pendekin-admin-2026
 ```
 
 ### 3. Supabase Schema Setup
@@ -80,6 +82,13 @@ deno task dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Admin Dashboard
+
+Access the admin dashboard at `http://localhost:3000/admin`.
+
+- **Authentication**: Prompted for the `ADMIN_SECRET_KEY` set in your `.env.local`.
+- **Capabilities**: View total links & click statistics, search by title/URL/Client ID, filter active vs expired links, preview QR codes, and perform admin link deletions.
 
 ## Docker Deployment
 
