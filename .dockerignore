@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.agents
+*.log
+Dockerfile
+docker-compose*.yml
+README.md

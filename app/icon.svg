@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Rounded Container with Brand Gradient Border -->
+  <rect x="1" y="1" width="30" height="30" rx="8" fill="#09090b" stroke="url(#bgGrad)" stroke-width="2"/>
+
+  <!-- Interlocking Shortened Link Vector Mark -->
+  <path
+    d="M18.444 13.556a5.333 5.333 0 0 0-7.543 0l-5.333 5.333a5.333 5.333 0 1 0 7.543 7.543l1.47-1.468m-1.01-6.532a5.333 5.333 0 0 0 7.543 0l5.333-5.333a5.333 5.333 0 0 0-7.543-7.543l-1.468 1.47"
+    fill="none"
+    stroke="url(#iconGrad)"
+    stroke-width="2.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    transform="translate(-1, -1) scale(1.06)"
+  />
+</svg>
