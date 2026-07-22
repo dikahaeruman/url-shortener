@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="appleBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="appleIconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="180" height="180" rx="40" fill="#09090b"/>
+  <rect x="4" y="4" width="172" height="172" rx="36" fill="none" stroke="url(#appleBgGrad)" stroke-width="8"/>
+
+  <!-- Link Icon Mark -->
+  <path
+    d="M103.828 76.172a30 30 0 0 0-42.426 0l-30 30a30 30 0 1 0 42.426 42.426l8.265-8.258m-5.685-36.742a30 30 0 0 0 42.426 0l30-30a30 30 0 0 0-42.426-42.426l-8.25 8.25"
+    fill="none"
+    stroke="url(#appleIconGrad)"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

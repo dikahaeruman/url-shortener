@@ -13,8 +13,16 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pendekin - Fast & Minimal Personal URL Shortener",
+  title: "Pendekin - Fast & Minimal URL Shortener",
   description: "Create short, clean, and trackable links instantly.",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/apple-icon.svg', type: 'image/svg+xml' },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
