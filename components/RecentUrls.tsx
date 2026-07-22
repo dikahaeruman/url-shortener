@@ -69,24 +69,13 @@ export default function RecentUrls({ refreshTrigger = 0 }: RecentUrlsProps) {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="w-full max-w-xl mx-auto mt-8 text-left space-y-2 animate-pulse">
-        <div className="h-3 w-24 bg-neutral-800 rounded"></div>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-3">
-          <div className="h-4 bg-neutral-800 rounded w-3/4"></div>
-          <div className="h-3 bg-neutral-800/60 rounded w-1/2"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (urls.length === 0) {
+  // Silent Loading: Do not render any skeleton boxes or layout jumpers while loading
+  if (loading || urls.length === 0) {
     return null;
   }
 
   return (
-    <div className="w-full max-w-xl mx-auto mt-8 text-left">
+    <div className="w-full max-w-xl mx-auto mt-8 text-left animate-in fade-in duration-300">
       <div className="flex items-center justify-between mb-3 px-1">
         <span className="text-xs font-semibold text-neutral-300 uppercase tracking-wider">
           Your Links
