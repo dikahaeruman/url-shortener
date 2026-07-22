@@ -31,7 +31,7 @@ export function isValidUrl(urlString: string): boolean {
  */
 export function normalizeUrl(urlString: string): string {
   let trimmed = urlString.trim();
-  if (!/^https?:\/\//i.test(trimmed)) {
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//i.test(trimmed)) {
     trimmed = `https://${trimmed}`;
   }
   return trimmed;
@@ -197,7 +197,7 @@ export function isValidCustomCode(code: string): { valid: boolean; error?: strin
   if (trimmed.length > 30) {
     return { valid: false, error: 'Custom short code must not exceed 30 characters.' };
   }
-  if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+  if (!/^[a-zA-Z0-9_.-]+$/.test(trimmed)) {
     return {
       valid: false,
       error: 'Custom short code can only contain letters, numbers, hyphens (-), and underscores (_).',

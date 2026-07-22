@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { supabase, isSupabaseConfigured, UrlRecord } from '@/lib/supabase';
 import RedirectCountdown from '@/components/RedirectCountdown';
 import ExpiredLink from '@/components/ExpiredLink';
@@ -11,7 +11,7 @@ export default async function ShortCodeRedirectPage({
   const { short_code } = await params;
 
   if (!short_code || !isSupabaseConfigured()) {
-    redirect('/?error=not_found');
+    notFound();
   }
 
   const { data, error } = await supabase
@@ -23,7 +23,7 @@ export default async function ShortCodeRedirectPage({
   const record = data as Pick<UrlRecord, 'id' | 'original_url' | 'clicks' | 'short_code' | 'expires_at'> | null;
 
   if (error || !record || !record.original_url) {
-    redirect('/?error=not_found');
+    notFound();
   }
 
   // Check TTL Expiration
