@@ -1,10 +1,19 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { supabase, isSupabaseConfigured, UrlRecord } from '@/lib/supabase';
 
 function verifyAdmin(request: Request): boolean {
   const adminKey = request.headers.get('x-admin-key');
   const expectedKey = process.env.ADMIN_SECRET_KEY || 'pendekin-admin-2026';
-  return Boolean(adminKey && adminKey === expectedKey);
+
+  if (!adminKey || typeof adminKey !== 'string') return false;
+
+  const a = Buffer.from(adminKey);
+  const b = Buffer.from(expectedKey);
+
+  if (a.length !== b.length) return false;
+
+  return crypto.timingSafeEqual(a, b);
 }
 
 export async function GET(request: Request) {
