@@ -1,3 +1,9 @@
+export interface SafetyResult {
+  safe: boolean;
+  error?: string;
+  normalizedUrl?: string;
+}
+
 /**
  * Generates a random alphanumeric short code.
  * @param length Length of the generated code (default: 6)
@@ -14,7 +20,6 @@ export function generateShortCode(length: number = 6): string {
 
 /**
  * Validates whether a given string is a valid HTTP/HTTPS URL.
- * @param urlString The input URL string
  */
 export function isValidUrl(urlString: string): boolean {
   try {
@@ -27,7 +32,6 @@ export function isValidUrl(urlString: string): boolean {
 
 /**
  * Normalizes input URL by adding https:// if protocol is omitted.
- * @param urlString The input URL string
  */
 export function normalizeUrl(urlString: string): string {
   let trimmed = urlString.trim();
@@ -50,7 +54,63 @@ export function getFaviconUrl(urlString: string): string {
 }
 
 /**
- * Comprehensive URL Safety & Self-Loop Validation.
+ * Pure host/IP classification — safe in client bundles.
+ * Server-side `validateUrlSafety` in url-safety-server.ts layers DNS
+ * resolution on top to catch hostname-to-private-IP rebinding.
+ */
+export function isBlockedHostname(host: string): boolean {
+  const h = host.toLowerCase().split('%')[0];
+
+  if (h === 'localhost' || h === '0.0.0.0' || h === '::' || h === '[::]') return true;
+  if (h === '::1' || h === '[::1]') return true;
+
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (ipv4) {
+    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a === 0) return true;
+    if (a >= 224) return true;
+  }
+
+  if (h.includes(':')) {
+    const expanded = expandIpv6(h);
+    if (expanded === '00000000000000000000000000000001') return true;
+    if (/^fc[0-9a-f]{2}/i.test(expanded.slice(0, 4))) return true;
+    if (/^fe[89ab][0-9a-f]/i.test(expanded.slice(0, 4))) return true;   // fe80::/10 link-local
+    if (/^ff/i.test(expanded.slice(0, 2))) return true;
+    if (expanded.startsWith('00000000000000000000ffff')) {
+      const last = expanded.slice(32);
+      const v4 = `${parseInt(last.slice(0, 2), 16)}.${parseInt(last.slice(2, 4), 16)}.${parseInt(last.slice(4, 6), 16)}.${parseInt(last.slice(6, 8), 16)}`;
+      return isBlockedHostname(v4);
+    }
+  }
+
+  return false;
+}
+
+function expandIpv6(h: string): string {
+  const stripped = h.replace(/^\[|\]$/g, '');
+  const parts = stripped.split('::');
+  const head = parts[0] ? parts[0].split(':') : [];
+  const tail = parts[1] ? parts[1].split(':') : [];
+  const fill = 8 - head.length - tail.length;
+  if (parts.length === 1) {
+    return head.map((p) => p.padStart(4, '0')).join('').padEnd(32, '0');
+  }
+  const middle = fill > 0 ? Array(fill).fill('0000') : [];
+  return [...head, ...middle, ...tail].map((p) => p.padStart(4, '0')).join('').padEnd(32, '0');
+}
+
+/**
+ * Comprehensive URL Safety & Self-Loop Validation (client-safe, sync).
+ *
+ * Server-side callers should use `validateUrlSafety` from
+ * `./url-safety-server` which adds DNS resolution to defeat rebinding.
  */
 export function validateUrlSafety(
   urlString: string,
@@ -69,7 +129,6 @@ export function validateUrlSafety(
     return { safe: false, error: 'Please enter a valid HTTP or HTTPS URL.' };
   }
 
-  // 1. Strict Scheme Check
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     return {
       safe: false,
@@ -79,7 +138,6 @@ export function validateUrlSafety(
 
   const hostname = parsed.hostname.toLowerCase();
 
-  // 2. Self-Loop Protection
   if (currentHost) {
     const cleanCurrentHost = currentHost.split(':')[0].toLowerCase();
     if (hostname === cleanCurrentHost || hostname.endsWith(`.${cleanCurrentHost}`)) {
@@ -90,33 +148,12 @@ export function validateUrlSafety(
     }
   }
 
-  // Common production domain checks
-  if (hostname.includes('andhikadev.my.id') || hostname.includes('pendekin')) {
+  // 3. Localhost & Private IP SSRF Protection (string check only)
+  // Server-side resolver adds DNS check; see lib/url-safety-server.ts
+  if (isBlockedHostname(hostname)) {
     return {
       safe: false,
-      error: 'Cannot shorten URLs originating from this domain to prevent infinite redirection loops.',
-    };
-  }
-
-  // 3. Localhost & Private IP SSRF Protection
-  const BLOCKED_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]', '::1']);
-  if (BLOCKED_HOSTS.has(hostname)) {
-    return {
-      safe: false,
-      error: 'Loopback and localhost addresses cannot be shortened.',
-    };
-  }
-
-  // Private IPv4 Range Checks (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
-  const isPrivateIp =
-    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname);
-
-  if (isPrivateIp) {
-    return {
-      safe: false,
-      error: 'Internal private IP addresses cannot be shortened.',
+      error: 'Internal, loopback, or link-local addresses cannot be shortened.',
     };
   }
 
@@ -145,11 +182,9 @@ export async function fetchTargetTitle(urlString: string): Promise<string | null
 
     const text = await res.text();
 
-    // Match <title>...</title>
     const titleMatch = text.match(/<title[^>]*>([^<]+)<\/title>/i);
     let title = titleMatch ? titleMatch[1] : null;
 
-    // Fallback to og:title
     if (!title) {
       const ogMatch = text.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
       title = ogMatch ? ogMatch[1] : null;
@@ -157,7 +192,6 @@ export async function fetchTargetTitle(urlString: string): Promise<string | null
 
     if (!title) return null;
 
-    // Decode HTML entities
     const decoded = title
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')

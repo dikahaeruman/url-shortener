@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import type { UrlRecord } from '@/lib/supabase';
 import { getFaviconUrl } from '@/lib/utils';
+import { matchesSearch, matchesStatus } from '@/lib/url-filter';
 import Logo from '@/components/Logo';
 import QrModal from '@/components/QrModal';
 import FaviconImage from '@/components/FaviconImage';
@@ -146,22 +147,11 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const filteredUrls = urls.filter((record) => {
-    const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < now : false;
-
-    if (statusFilter === 'active' && isExpired) return false;
-    if (statusFilter === 'expired' && !isExpired) return false;
-
-    if (!searchQuery.trim()) return true;
-
-    const query = searchQuery.toLowerCase();
-    const matchCode = record.short_code.toLowerCase().includes(query);
-    const matchUrl = record.original_url.toLowerCase().includes(query);
-    const matchTitle = record.title ? record.title.toLowerCase().includes(query) : false;
-    const matchClient = record.client_id ? record.client_id.toLowerCase().includes(query) : false;
-
-    return matchCode || matchUrl || matchTitle || matchClient;
-  });
+  const filteredUrls = urls.filter(
+    (record) =>
+      matchesStatus(record, statusFilter, now) &&
+      matchesSearch(record, searchQuery)
+  );
 
   // Render Initial Session Verification Screen (Eliminates login page flicker on refresh)
   if (isInitializing) {

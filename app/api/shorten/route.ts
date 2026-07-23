@@ -1,18 +1,51 @@
-import { NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured, UrlRecord } from '@/lib/supabase';
-import { generateShortCode, isValidCustomCode, validateUrlSafety, fetchTargetTitle } from '@/lib/utils';
+import { isValidCustomCode, fetchTargetTitle } from '@/lib/utils';
+import { validateUrlSafety } from '@/lib/url-safety-server';
+import { rateLimit } from '@/lib/rateLimit';
+import { insertUrl } from '@/lib/url-storage';
+import { NextResponse } from 'next/server';
+
+function getClientIp(request: Request): string {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+// ponytail: one place to gate on Supabase config. Returns either a
+// 500 response (caller should return it) or null (continue).
+function requireSupabase(): NextResponse | null {
+  if (isSupabaseConfigured()) return null;
+  return NextResponse.json(
+    { error: 'Supabase credentials are not configured.' },
+    { status: 500 }
+  );
+}
 
 export async function POST(request: Request) {
   try {
-    if (!isSupabaseConfigured()) {
+    // ponytail: rate limit on writes only — reads stay open.
+    if (!rateLimit(getClientIp(request))) {
       return NextResponse.json(
-        {
-          error:
-            'Supabase credentials are not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in .env.local',
-        },
-        { status: 500 }
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
       );
     }
+
+    // ponytail: 4KB hard cap on the body. Short code + URL + a few
+    // headers can't legitimately exceed this; anything bigger is junk
+    // or a DoS attempt. 413 = Payload Too Large.
+    const contentLength = Number(request.headers.get('content-length') ?? 0);
+    if (contentLength > 4096) {
+      return NextResponse.json(
+        { error: 'Request body too large.' },
+        { status: 413 }
+      );
+    }
+
+    const supabaseError = requireSupabase();
+    if (supabaseError) return supabaseError;
 
     const body = await request.json();
     const { original_url, custom_code, expires_in } = body;
@@ -20,7 +53,7 @@ export async function POST(request: Request) {
     const currentHost = request.headers.get('host') || request.headers.get('x-forwarded-host') || undefined;
 
     // Validate URL safety, dangerous protocols, and self-loop attempts
-    const safetyCheck = validateUrlSafety(original_url, currentHost);
+    const safetyCheck = await validateUrlSafety(original_url, currentHost);
     if (!safetyCheck.safe || !safetyCheck.normalizedUrl) {
       return NextResponse.json(
         { error: safetyCheck.error || 'Invalid or unsafe URL.' },
@@ -28,131 +61,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const normalizedUrl = safetyCheck.normalizedUrl;
-
-    // Automatically fetch target page title with fast 3s timeout
-    const fetchedTitle = await fetchTargetTitle(normalizedUrl);
-
-    let shortCode = '';
-
-    // Calculate Expiration Timestamp
-    let expiresAt: string | null = null;
-    if (expires_in && typeof expires_in === 'string') {
-      const now = Date.now();
-      switch (expires_in) {
-        case '1h':
-          expiresAt = new Date(now + 60 * 60 * 1000).toISOString();
-          break;
-        case '24h':
-          expiresAt = new Date(now + 24 * 60 * 60 * 1000).toISOString();
-          break;
-        case '7d':
-          expiresAt = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
-          break;
-        case '30d':
-          expiresAt = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
-          break;
-        default:
-          expiresAt = null;
-      }
-    }
-
-    // Handle Custom Short Code if provided
+    // Validate custom code if provided
+    let trimmedCustom: string | undefined;
     if (custom_code && typeof custom_code === 'string' && custom_code.trim().length > 0) {
-      const trimmedCustom = custom_code.trim();
+      trimmedCustom = custom_code.trim();
       const validation = isValidCustomCode(trimmedCustom);
-
       if (!validation.valid) {
         return NextResponse.json({ error: validation.error }, { status: 400 });
       }
-
-      // Check if custom_code already exists
-      const { data: existing } = await supabase
-        .from('urls')
-        .select('short_code')
-        .eq('short_code', trimmedCustom)
-        .maybeSingle();
-
-      if (existing) {
-        return NextResponse.json(
-          { error: `The custom code "${trimmedCustom}" is already in use. Please choose another.` },
-          { status: 409 }
-        );
-      }
-
-      shortCode = trimmedCustom;
-    } else {
-      // Auto-generate unique short code
-      let isUnique = false;
-      let attempts = 0;
-      const maxAttempts = 5;
-
-      while (!isUnique && attempts < maxAttempts) {
-        attempts++;
-        shortCode = generateShortCode(6);
-
-        const { data: existing } = await supabase
-          .from('urls')
-          .select('short_code')
-          .eq('short_code', shortCode)
-          .maybeSingle();
-
-        if (!existing) {
-          isUnique = true;
-        }
-      }
-
-      if (!isUnique) {
-        return NextResponse.json(
-          { error: 'Failed to generate unique short code. Please try again.' },
-          { status: 500 }
-        );
-      }
     }
 
-    // Insert new URL record into Supabase
-    const { data, error } = await supabase
-      .from('urls')
-      .insert({
-        original_url: normalizedUrl,
-        short_code: shortCode,
-        clicks: 0,
-        client_id: clientId,
-        expires_at: expiresAt,
-        title: fetchedTitle,
-      })
-      .select()
-      .single();
+    // Compute expiry
+    const expiresAt = computeExpiresAt(expires_in);
 
-    if (error || !data) {
-      console.error('Supabase error inserting URL:', error);
-      return NextResponse.json(
-        { error: 'Failed to store URL in database.' },
-        { status: 500 }
-      );
+    // Insert (handles unique-violation retry internally)
+    const result = await insertUrl({
+      original_url: safetyCheck.normalizedUrl,
+      client_id: clientId,
+      expires_at: expiresAt,
+      custom_code: trimmedCustom,
+    });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    const record = data as UrlRecord;
-
-    // Construct short URL
-    const origin = request.headers.get('origin') || request.headers.get('host') || '';
-    const protocol = origin.includes('localhost') || origin.includes('127.0.0.1') ? 'http' : 'https';
-    const baseUrl = origin ? (origin.startsWith('http') ? origin : `${protocol}://${origin}`) : '';
-    const shortUrl = `${baseUrl}/${record.short_code}`;
-
-    return NextResponse.json(
-      {
-        id: record.id,
-        original_url: record.original_url,
-        short_code: record.short_code,
-        short_url: shortUrl,
-        clicks: record.clicks,
-        created_at: record.created_at,
-        expires_at: record.expires_at,
-        title: record.title,
-      },
-      { status: 201 }
-    );
+    return finishCreate(request, result.record, safetyCheck.normalizedUrl);
   } catch (err) {
     console.error('Unexpected error in shorten API:', err);
     return NextResponse.json(
@@ -162,11 +96,65 @@ export async function POST(request: Request) {
   }
 }
 
+function computeExpiresAt(expiresIn: unknown): string | null {
+  if (!expiresIn || typeof expiresIn !== 'string') return null;
+  const now = Date.now();
+  switch (expiresIn) {
+    case '1h':  return new Date(now + 60 * 60 * 1000).toISOString();
+    case '24h': return new Date(now + 24 * 60 * 60 * 1000).toISOString();
+    case '7d':  return new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString();
+    case '30d': return new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
+    default:    return null;
+  }
+}
+
+// ponytail: extracted so the create handler can return early from
+// multiple success branches without duplicating the URL-construction
+// and background-title-fetch logic.
+async function finishCreate(
+  request: Request,
+  record: UrlRecord,
+  normalizedUrl: string
+) {
+  // ponytail: title fetch in the background so the create response is
+  // not gated on a 3s HTML GET. Failure is non-fatal; the row is
+  // already saved. Upgrade: use a queue + retry if titles become a
+  // first-class product feature.
+  if (record.id) {
+    const rowId = record.id;
+    void fetchTargetTitle(normalizedUrl).then((fetchedTitle) => {
+      if (!fetchedTitle) return;
+      return supabase
+        .from('urls')
+        .update({ title: fetchedTitle })
+        .eq('id', rowId);
+    });
+  }
+
+  const origin = request.headers.get('origin') || request.headers.get('host') || '';
+  const protocol = origin.includes('localhost') || origin.includes('127.0.0.1') ? 'http' : 'https';
+  const baseUrl = origin ? (origin.startsWith('http') ? origin : `${protocol}://${origin}`) : '';
+  const shortUrl = `${baseUrl}/${record.short_code}`;
+
+  return NextResponse.json(
+    {
+      id: record.id,
+      original_url: record.original_url,
+      short_code: record.short_code,
+      short_url: shortUrl,
+      clicks: record.clicks,
+      created_at: record.created_at,
+      expires_at: record.expires_at,
+      title: record.title,
+    },
+    { status: 201 }
+  );
+}
+
 export async function GET(request: Request) {
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json({ urls: [], configured: false }, { status: 200 });
-    }
+    const supabaseError = requireSupabase();
+    if (supabaseError) return NextResponse.json({ urls: [], configured: false }, { status: 200 });
 
     const { searchParams } = new URL(request.url);
     const clientId = request.headers.get('x-client-id') || searchParams.get('client_id');
@@ -202,12 +190,8 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json(
-        { error: 'Supabase credentials are not configured.' },
-        { status: 500 }
-      );
-    }
+    const supabaseError = requireSupabase();
+    if (supabaseError) return supabaseError;
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

@@ -67,7 +67,7 @@ describe('lib/utils - getFaviconUrl', () => {
   });
 });
 
-describe('lib/utils - validateUrlSafety', () => {
+describe('lib/utils - validateUrlSafety (client-safe, sync)', () => {
   test('returns error for empty or non-string input', () => {
     // @ts-expect-error testing runtime validation
     expect(validateUrlSafety(null)).toEqual({ safe: false, error: 'URL parameter is required.' });
@@ -80,36 +80,58 @@ describe('lib/utils - validateUrlSafety', () => {
     expect(result.error).toContain('Only HTTP and HTTPS URLs are allowed');
   });
 
-  test('prevents self-loop redirection to current host or app domain', () => {
+  test('prevents self-loop redirection to current host', () => {
     const res1 = validateUrlSafety('https://my-app.com/path', 'my-app.com');
     expect(res1.safe).toBe(false);
     expect(res1.error).toContain('infinite redirection loops');
 
-    const res2 = validateUrlSafety('https://pendekin.andhikadev.my.id');
+    const res2 = validateUrlSafety('https://sub.my-app.com/x', 'my-app.com');
     expect(res2.safe).toBe(false);
-    expect(res2.error).toContain('infinite redirection loops');
   });
 
   test('blocks loopback and localhost addresses (SSRF Protection)', () => {
-    ['localhost', '127.0.0.1', '0.0.0.0', '[::1]'].forEach((host) => {
+    for (const host of ['localhost', '127.0.0.1', '0.0.0.0', '[::1]']) {
       const res = validateUrlSafety(`http://${host}/admin`);
       expect(res.safe).toBe(false);
-      expect(res.error).toContain('Loopback and localhost');
-    });
+      expect(res.error).toMatch(/loopback|Internal, loopback/);
+    }
   });
 
   test('blocks internal private IP ranges (SSRF Protection)', () => {
-    ['10.0.0.1', '192.168.1.1', '172.16.0.1', '172.31.255.255'].forEach((ip) => {
+    for (const ip of ['10.0.0.1', '192.168.1.1', '172.16.0.1', '172.31.255.255']) {
       const res = validateUrlSafety(`http://${ip}`);
       expect(res.safe).toBe(false);
-      expect(res.error).toContain('Internal private IP addresses cannot be shortened');
-    });
+    }
+    const res = validateUrlSafety('http://169.254.169.254/');
+    expect(res.safe).toBe(false);
+  });
+
+  test('blocks IPv6 unique-local and link-local', () => {
+    const fc = validateUrlSafety('http://[fc00::1]/');
+    expect(fc.safe).toBe(false);
+    const fe = validateUrlSafety('http://[fe80::1]/');
+    expect(fe.safe).toBe(false);
   });
 
   test('allows safe public URLs', () => {
     const res = validateUrlSafety('https://google.com/search?q=test');
     expect(res.safe).toBe(true);
     expect(res.normalizedUrl).toBe('https://google.com/search?q=test');
+  });
+});
+
+import { validateUrlSafety as validateUrlSafetyServer } from '../lib/url-safety-server';
+
+describe('lib/url-safety-server - validateUrlSafety (async, DNS)', () => {
+  test('still rejects obvious bad hostnames synchronously', async () => {
+    const res = await validateUrlSafetyServer('http://10.0.0.1/');
+    expect(res.safe).toBe(false);
+  });
+
+  test('resolves a public domain via DNS and allows it', async () => {
+    const res = await validateUrlSafetyServer('https://example.com/');
+    expect(res.safe).toBe(true);
+    expect(res.normalizedUrl).toBe('https://example.com/');
   });
 });
 

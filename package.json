@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "docker compose build && docker compose up -d --force-recreate && docker image prune -a -f"
+    "test": "bun test",
+    "deploy": "bun test && bun run lint && docker compose build && docker compose up -d --force-recreate && docker image prune -a -f && docker buildx prune -f"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

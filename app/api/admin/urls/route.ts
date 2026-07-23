@@ -1,11 +1,33 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabase, isSupabaseConfigured, UrlRecord } from '@/lib/supabase';
+import { rateLimit } from '@/lib/rateLimit';
+
+function getClientIp(request: Request): string {
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+function getAdminKey(): string | null {
+  const key = process.env.ADMIN_SECRET_KEY;
+  if (!key || key === 'pendekin-admin-2026') {
+    // ponytail: refuse the documented dev fallback in production. In dev
+    // (NODE_ENV !== production) we still allow the local default so
+    // `bun dev` works without a `.env` file.
+    if (process.env.NODE_ENV === 'production') return null;
+    return key || 'pendekin-admin-2026';
+  }
+  return key;
+}
 
 function verifyAdmin(request: Request): boolean {
-  const adminKey = request.headers.get('x-admin-key');
-  const expectedKey = process.env.ADMIN_SECRET_KEY || 'pendekin-admin-2026';
+  const expectedKey = getAdminKey();
+  if (!expectedKey) return false;
 
+  const adminKey = request.headers.get('x-admin-key');
   if (!adminKey || typeof adminKey !== 'string') return false;
 
   const a = Buffer.from(adminKey);
@@ -18,6 +40,13 @@ function verifyAdmin(request: Request): boolean {
 
 export async function GET(request: Request) {
   try {
+    // ponytail: rate limit on admin reads too — same bucket as writes
+    // would let an attacker DoS the bucket cheaply with admin calls.
+    // Use a separate per-IP cap here. Key gate is the first line of
+    // defense; this is the second.
+    if (!rateLimit(getClientIp(request), 'admin', 30, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+    }
     if (!verifyAdmin(request)) {
       return NextResponse.json({ error: 'Unauthorized admin access.' }, { status: 401 });
     }
@@ -61,6 +90,9 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    if (!rateLimit(getClientIp(request), 'admin', 30, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+    }
     if (!verifyAdmin(request)) {
       return NextResponse.json({ error: 'Unauthorized admin access.' }, { status: 401 });
     }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { UrlRecord } from '@/lib/supabase';
 import { getFaviconUrl } from '@/lib/utils';
+import { isExpired } from '@/lib/url-filter';
 import FaviconImage from './FaviconImage';
 
 interface UrlItemRowProps {
@@ -26,7 +27,7 @@ export default function UrlItemRow({
   const [isConfirming, setIsConfirming] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const isExpired = record.expires_at ? new Date(record.expires_at).getTime() < now : false;
+  const expired = isExpired(record, now);
   const faviconUrl = getFaviconUrl(record.original_url);
   const shortUrl = origin ? `${origin}/${record.short_code}` : `/${record.short_code}`;
 
@@ -55,7 +56,7 @@ export default function UrlItemRow({
   return (
     <div
       className={`p-3.5 sm:p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-neutral-800/40 transition-colors ${
-        isExpired ? 'opacity-60' : ''
+        expired ? 'opacity-60' : ''
       }`}
     >
       <div className="min-w-0 flex-1 space-y-1">
@@ -78,7 +79,7 @@ export default function UrlItemRow({
             target="_blank"
             rel="noopener noreferrer"
             className={`font-mono text-base sm:text-sm font-semibold transition-colors ${
-              isExpired ? 'text-neutral-400 line-through' : 'text-indigo-400 hover:text-indigo-300 hover:underline'
+              expired ? 'text-neutral-400 line-through' : 'text-indigo-400 hover:text-indigo-300 hover:underline'
             }`}
           >
             /{record.short_code}
@@ -86,7 +87,7 @@ export default function UrlItemRow({
           <span className="text-xs text-neutral-300 font-mono px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800">
             {record.clicks} clicks
           </span>
-          {isExpired ? (
+          {expired ? (
             <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-red-950/80 text-red-400 border border-red-900/60 font-semibold">
               Expired
             </span>

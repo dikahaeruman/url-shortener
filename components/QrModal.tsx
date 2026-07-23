@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface QrModalProps {
   shortUrl: string;
@@ -11,6 +11,17 @@ interface QrModalProps {
 
 export default function QrModal({ shortUrl, shortCode, title, onClose }: QrModalProps) {
   const [downloading, setDownloading] = useState(false);
+
+  // ponytail: Escape closes the modal — one useEffect, native listener,
+  // no need for a focus trap (modal is short-lived, full-screen overlay
+  // already traps focus well enough for casual use).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
     shortUrl

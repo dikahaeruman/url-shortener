@@ -45,4 +45,15 @@ USER nextjs
 
 EXPOSE 3000
 
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# ponytail: HEALTHCHECK via wget --spider (already in the base image).
+# Spinning up bun just to fetch is wasteful when wget is free. A 200
+# or 404 from the home route means the server is up. Use the IPv4
+# literal — the alpine busybox wget has no -4 flag, and Bun's
+# standalone server binds IPv6 by default.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q --spider http://127.0.0.1:3000/ || exit 1
+
 CMD ["bun", "server.js"]
