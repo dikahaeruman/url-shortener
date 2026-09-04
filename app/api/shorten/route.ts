@@ -168,6 +168,10 @@ async function finishCreate(
 
 export async function GET(request: Request) {
   try {
+    if (!rateLimit(getClientIp(request), 'shorten_get', 60, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+    }
+
     const supabaseError = requireSupabase();
     if (supabaseError) return NextResponse.json({ urls: [], configured: false }, { status: 200 });
 
@@ -205,6 +209,10 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    if (!rateLimit(getClientIp(request), 'shorten_delete', 30, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+    }
+
     const supabaseError = requireSupabase();
     if (supabaseError) return supabaseError;
 
@@ -212,19 +220,18 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id');
     const clientId = request.headers.get('x-client-id') || searchParams.get('client_id');
 
-    if (!id) {
+    if (!id || !clientId || typeof clientId !== 'string' || clientId.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Record ID is required.' },
+        { error: 'Record ID and client ID are required to delete a link.' },
         { status: 400 }
       );
     }
 
-    let query = supabase.from('urls').delete().eq('id', id);
-    if (clientId) {
-      query = query.eq('client_id', clientId);
-    }
-
-    const { error } = await query;
+    const { error } = await supabase
+      .from('urls')
+      .delete()
+      .eq('id', id)
+      .eq('client_id', clientId.trim());
 
     if (error) {
       console.error('Supabase error deleting URL:', error);

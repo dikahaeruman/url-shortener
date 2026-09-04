@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { validateUrlSafety } from '@/lib/url-safety-server';
+import { isBlockedHostname } from '@/lib/utils';
 
 export async function GET(
   _request: Request,
@@ -38,6 +39,19 @@ export async function GET(
     if (expiresTime < Date.now()) {
       return NextResponse.redirect(new URL(`/expired?code=${short_code}`, publicOrigin));
     }
+  }
+
+  // Synchronous protocol & loopback guard
+  try {
+    const parsed = new URL(data.original_url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return NextResponse.redirect(new URL('/not-found', publicOrigin));
+    }
+    if (isBlockedHostname(parsed.hostname.toLowerCase())) {
+      return NextResponse.redirect(new URL('/not-found', publicOrigin));
+    }
+  } catch {
+    return NextResponse.redirect(new URL('/not-found', publicOrigin));
   }
 
   // ponytail: resolve through the same safety gate as /api/shorten so a

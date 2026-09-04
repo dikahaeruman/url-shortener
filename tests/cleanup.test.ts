@@ -5,14 +5,14 @@ import {
 } from '@/lib/cleanup';
 import { supabase } from '@/lib/supabase';
 
+const realRpc = supabase.rpc;
+
 describe('maybeCleanupExpired gate', () => {
   let calls: number;
-  let originalRpc: any;
 
   beforeEach(() => {
     _resetCleanupGate();
     calls = 0;
-    originalRpc = supabase.rpc;
     supabase.rpc = (async () => {
       calls += 1;
       return { data: [{ deleted: 0, ran_at: new Date().toISOString() }], error: null };
@@ -20,7 +20,7 @@ describe('maybeCleanupExpired gate', () => {
   });
 
   afterEach(() => {
-    supabase.rpc = originalRpc;
+    supabase.rpc = realRpc;
   });
 
   test('fires RPC on first call', async () => {

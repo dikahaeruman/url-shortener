@@ -26,13 +26,14 @@ const securityHeaders = [
     value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
   },
   {
-    key: 'X-XSS-Protection',
-    value: '1; mode=block',
+    key: 'Content-Security-Policy',
+    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.qrserver.com https://safebrowsing.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
   },
 ];
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  poweredByHeader: false,
   async headers() {
     return [
       {

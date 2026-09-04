@@ -25,6 +25,7 @@ function makeFromBuilder(opts: { insertResult?: any; deleteResult?: any; selectR
   builder.insert = () => builder;
   builder.select = () => builder;
   builder.delete = () => builder;
+  builder.update = () => builder;
   builder.eq = () => builder;
   builder.order = () => builder;
   builder.single = () => Promise.resolve(insertResult);

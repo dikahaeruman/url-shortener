@@ -5,8 +5,35 @@ type Bucket = { tokens: number; lastRefill: number };
 
 const DEFAULT_MAX = 10;
 const DEFAULT_WINDOW_MS = 60_000;
+const MAX_BUCKETS = 10_000;
+const CLEANUP_INTERVAL_MS = 60_000;
 
 const buckets = new Map<string, Bucket>();
+let lastCleanup = Date.now();
+
+function cleanupStaleBuckets(now: number): void {
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS && buckets.size < MAX_BUCKETS) {
+    return;
+  }
+  lastCleanup = now;
+
+  for (const [key, bucket] of buckets.entries()) {
+    // Evict buckets that have been inactive for more than 5 minutes
+    if (now - bucket.lastRefill > 5 * 60_000) {
+      buckets.delete(key);
+    }
+  }
+
+  // Hard safety cap if still oversized: clear oldest half
+  if (buckets.size > MAX_BUCKETS) {
+    let count = 0;
+    const target = Math.floor(MAX_BUCKETS / 2);
+    for (const key of buckets.keys()) {
+      buckets.delete(key);
+      if (++count >= target) break;
+    }
+  }
+}
 
 export function rateLimit(
   ip: string,
@@ -15,6 +42,8 @@ export function rateLimit(
   windowMs: number = DEFAULT_WINDOW_MS
 ): boolean {
   const now = Date.now();
+  cleanupStaleBuckets(now);
+
   const key = `${ip}::${bucketKey}`;
   const bucket = buckets.get(key) ?? { tokens: max, lastRefill: now };
 
@@ -34,6 +63,3 @@ export function rateLimit(
   buckets.set(key, bucket);
   return true;
 }
-
-// ponytail: unbounded growth is fine at this scale (1 instance, low QPS).
-// Add periodic cleanup if it ever matters.

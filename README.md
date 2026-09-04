@@ -53,10 +53,13 @@ CREATE TABLE public.urls (
 
 ALTER TABLE public.urls ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public select on urls" ON public.urls FOR SELECT USING (true);
-CREATE POLICY "Allow public insert on urls" ON public.urls FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update on urls" ON public.urls FOR UPDATE USING (true);
-CREATE POLICY "Allow public delete on urls" ON public.urls FOR DELETE USING (true);
+-- Allow public read access to active URLs
+CREATE POLICY "Allow public select on active urls" ON public.urls
+  FOR SELECT USING (expires_at IS NULL OR expires_at > now());
+
+-- Allow public insert with basic checks
+CREATE POLICY "Allow public insert on urls" ON public.urls
+  FOR INSERT WITH CHECK (true);
 ```
 
 ### 4. Development Server
