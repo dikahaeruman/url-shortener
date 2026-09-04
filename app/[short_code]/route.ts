@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { validateUrlSafety } from '@/lib/url-safety-server';
 import { isBlockedHostname, getSafePublicOrigin, getClientIp, logSecurityEvent } from '@/lib/utils';
 import { rateLimit } from '@/lib/rateLimit';
+import { isTrustedDomain } from '@/lib/trusted-domains';
 
 export async function GET(
   _request: Request,
@@ -55,6 +56,7 @@ export async function GET(
   }
 
   // Synchronous protocol & loopback guard
+  let parsedUrl: URL;
   try {
     const parsed = new URL(data.original_url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -69,6 +71,7 @@ export async function GET(
       });
       return NextResponse.redirect(new URL('/not-found', publicOrigin));
     }
+    parsedUrl = parsed;
   } catch {
     return NextResponse.redirect(new URL('/not-found', publicOrigin));
   }
@@ -90,6 +93,27 @@ export async function GET(
       );
     })
     .catch((err: unknown) => console.error('redirect safety check failed:', err));
+
+  // Domain & Reputation Protection:
+  // If destination domain is untrusted or newly registered, do not redirect directly (301/302).
+  // Redirect visitor to an interstitial splash screen preview with safety info.
+  if (!isTrustedDomain(parsedUrl.hostname)) {
+    logSecurityEvent({
+      action: 'UNTRUSTED_DOMAIN_INTERSTITIAL',
+      ip: clientIp,
+      status: 'warning',
+      detail: `Untrusted domain interstitial shown for: ${parsedUrl.hostname}`,
+      metadata: { short_code, target: data.original_url, hostname: parsedUrl.hostname },
+    });
+
+    const warningUrl = new URL('/warning', publicOrigin);
+    warningUrl.searchParams.set('code', short_code);
+    warningUrl.searchParams.set('target', data.original_url);
+
+    const response = NextResponse.redirect(warningUrl, { status: 302 });
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    return response;
+  }
 
   const response = NextResponse.redirect(data.original_url, { status: 302 });
   response.headers.set('Referrer-Policy', 'no-referrer');

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Logo from '@/components/Logo';
 import UrlShortenerSection from '@/components/UrlShortenerSection';
+import ReportAbuseButton from '@/components/ReportAbuseButton';
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
         <Link href="/">
           <Logo size="md" />
         </Link>
+        <ReportAbuseButton variant="header" />
       </header>
 
       {/* Main Shortener Application */}
@@ -27,8 +29,10 @@ export default function Home() {
       </main>
 
       {/* Minimal Footer with WCAG AAA Compliant Text Contrast */}
-      <footer className="py-4 text-center text-xs text-neutral-400 font-mono">
-        Pendekin — Fast & Minimal URL Shortener
+      <footer className="py-4 text-center text-xs text-neutral-400 font-mono flex items-center justify-center gap-2 flex-wrap">
+        <span>Pendekin — Fast & Minimal URL Shortener</span>
+        <span>·</span>
+        <ReportAbuseButton variant="link" />
       </footer>
     </div>
   );
