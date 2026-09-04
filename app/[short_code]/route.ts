@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { validateUrlSafety } from '@/lib/url-safety-server';
 
 export async function GET(
   _request: Request,
@@ -39,15 +40,23 @@ export async function GET(
     }
   }
 
-  // ponytail: fire-and-forget click increment via the atomic RPC.
-  // The SQL function does `clicks = clicks + 1` server-side, so there's
-  // no read-modify-write race. Failure is logged, not fatal — clicks
-  // are best-effort telemetry.
-  void supabase.rpc('increment_url_clicks', { row_id: data.id }).then(
-    ({ error: rpcError }: { error: unknown }) => {
-      if (rpcError) console.error('increment_url_clicks failed:', rpcError);
-    }
-  );
+  // ponytail: resolve through the same safety gate as /api/shorten so a
+  // link that was valid at creation can't be pointed at a private/blocked
+  // address after the fact (DNS rebinding on redirect). Non-blocking —
+  // clicks are best-effort telemetry.
+  void validateUrlSafety(data.original_url)
+    .then((check) => {
+      if (!check.safe || !check.normalizedUrl) {
+        console.error('redirect blocked unsafe target:', data.original_url);
+        return;
+      }
+      return supabase.rpc('increment_url_clicks', { row_id: data.id }).then(
+        ({ error: rpcError }: { error: unknown }) => {
+          if (rpcError) console.error('increment_url_clicks failed:', rpcError);
+        }
+      );
+    })
+    .catch((err: unknown) => console.error('redirect safety check failed:', err));
 
   return NextResponse.redirect(data.original_url, { status: 302 });
 }

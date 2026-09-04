@@ -1,14 +1,17 @@
 import { supabase, isSupabaseConfigured, UrlRecord } from '@/lib/supabase';
-import { isValidCustomCode, fetchTargetTitle } from '@/lib/utils';
-import { validateUrlSafety } from '@/lib/url-safety-server';
+import { isValidCustomCode } from '@/lib/utils';
+import { validateUrlSafety, fetchTargetTitleSafe, checkSafeBrowsing } from '@/lib/url-safety-server';
 import { rateLimit } from '@/lib/rateLimit';
 import { insertUrl } from '@/lib/url-storage';
 import { NextResponse } from 'next/server';
 
 function getClientIp(request: Request): string {
+  // ponytail: trust x-real-ip (set by NPM/nginx from $remote_addr) over
+  // x-forwarded-for — the client can forge the first XFF entry and
+  // rotate it to bypass per-IP rate limits.
   return (
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
     request.headers.get('x-real-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
     'unknown'
   );
 }
@@ -57,6 +60,18 @@ export async function POST(request: Request) {
     if (!safetyCheck.safe || !safetyCheck.normalizedUrl) {
       return NextResponse.json(
         { error: safetyCheck.error || 'Invalid or unsafe URL.' },
+        { status: 400 }
+      );
+    }
+
+    // ponytail: phishing/malware screen via Google Safe Browsing v4.
+    // Fail-open — without GOOGLE_SAFE_BROWSING_API_KEY (or on Google API
+    // errors) the check is skipped so creation never hard-fails. Flagged
+    // URLs are rejected at creation, before the link goes live.
+    const safeBrowsing = await checkSafeBrowsing(safetyCheck.normalizedUrl);
+    if (!safeBrowsing.safe) {
+      return NextResponse.json(
+        { error: safeBrowsing.error || 'URL blocked by Google Safe Browsing.' },
         { status: 400 }
       );
     }
@@ -122,7 +137,7 @@ async function finishCreate(
   // first-class product feature.
   if (record.id) {
     const rowId = record.id;
-    void fetchTargetTitle(normalizedUrl).then((fetchedTitle) => {
+    void fetchTargetTitleSafe(normalizedUrl).then((fetchedTitle) => {
       if (!fetchedTitle) return;
       return supabase
         .from('urls')

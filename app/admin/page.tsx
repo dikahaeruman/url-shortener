@@ -28,6 +28,9 @@ export default function AdminDashboardPage() {
     activeUrls: number;
     expiredUrls: number;
   }>({ totalUrls: 0, totalClicks: 0, activeUrls: 0, expiredUrls: 0 });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -41,11 +44,11 @@ export default function AdminDashboardPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [qrRecord, setQrRecord] = useState<UrlRecord | null>(null);
 
-  const fetchAdminData = useCallback(async (keyToUse: string): Promise<boolean> => {
+  const fetchAdminData = useCallback(async (keyToUse: string, pageNum: number, size: number): Promise<boolean> => {
     setLoading(true);
     setAuthError(null);
     try {
-      const res = await fetch('/api/admin/urls', {
+      const res = await fetch(`/api/admin/urls?page=${pageNum}&pageSize=${size}`, {
         headers: {
           'x-admin-key': keyToUse,
         },
@@ -58,6 +61,7 @@ export default function AdminDashboardPage() {
       }
 
       setUrls(data.urls || []);
+      setTotal(typeof data.total === 'number' ? data.total : 0);
       setStats(
         data.stats || { totalUrls: 0, totalClicks: 0, activeUrls: 0, expiredUrls: 0 }
       );
@@ -82,7 +86,7 @@ export default function AdminDashboardPage() {
     const savedKey = sessionStorage.getItem(ADMIN_KEY_STORAGE);
     if (savedKey) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      fetchAdminData(savedKey).then((success) => {
+      fetchAdminData(savedKey, page, pageSize).then((success) => {
         if (isMounted && success) {
           setAdminKey(savedKey);
         }
@@ -98,13 +102,14 @@ export default function AdminDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [fetchAdminData]);
+    // ponytail: re-fetch on page/size change after initial auth.
+  }, [fetchAdminData, page, pageSize]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputKey.trim()) return;
     setAdminKey(inputKey.trim());
-    fetchAdminData(inputKey.trim());
+    fetchAdminData(inputKey.trim(), page, pageSize);
   };
 
   const handleLogout = () => {
@@ -138,7 +143,7 @@ export default function AdminDashboardPage() {
       if (res.ok) {
         setUrls((prev) => prev.filter((item) => item.id !== id));
         setConfirmId(null);
-        fetchAdminData(adminKey);
+        fetchAdminData(adminKey, page, pageSize);
       }
     } catch (err) {
       console.error('Error deleting link in admin dashboard:', err);
@@ -239,7 +244,7 @@ export default function AdminDashboardPage() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => fetchAdminData(adminKey)}
+            onClick={() => fetchAdminData(adminKey, page, pageSize)}
             disabled={loading}
             className="px-3.5 py-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer min-h-[44px] flex items-center gap-1.5"
           >
@@ -285,7 +290,7 @@ export default function AdminDashboardPage() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               placeholder="Search links, title, URL, or Client ID..."
               className="w-full pl-9 pr-3 py-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-base sm:text-xs text-neutral-100 placeholder-neutral-400 focus:outline-none focus:border-indigo-500/80 min-h-[44px]"
             />
@@ -298,10 +303,10 @@ export default function AdminDashboardPage() {
             <span className="text-xs text-neutral-300 shrink-0 font-medium">Filter:</span>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'expired')}
+              onChange={(e) => { setStatusFilter(e.target.value as 'all' | 'active' | 'expired'); setPage(1); }}
               className="flex-1 sm:flex-none bg-neutral-950 border border-neutral-800 text-neutral-200 text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-500 cursor-pointer min-h-[44px]"
             >
-              <option value="all">All Links ({urls.length})</option>
+              <option value="all">All Links ({stats.totalUrls})</option>
               <option value="active">Active Only ({stats.activeUrls})</option>
               <option value="expired">Expired Only ({stats.expiredUrls})</option>
             </select>
@@ -491,6 +496,48 @@ export default function AdminDashboardPage() {
             </div>
           )}
         </div>
+
+        {/* ponytail: pagination footer. Uses server-side totals so the
+            "Showing N of M" is accurate even when search/filter hides
+            every row on the current page. */}
+        {total > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+            <p className="text-xs text-neutral-400 font-mono">
+              Showing <span className="text-neutral-200 font-semibold">{(page - 1) * pageSize + 1}</span>–
+              <span className="text-neutral-200 font-semibold">{Math.min(page * pageSize, total)}</span> of{' '}
+              <span className="text-neutral-200 font-semibold">{total}</span>
+            </p>
+            <div className="flex items-center gap-2">
+              <select
+                value={pageSize}
+                onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPage(1); }}
+                className="bg-neutral-950 border border-neutral-800 text-neutral-200 text-xs rounded-lg px-2 py-2 focus:outline-none focus:border-indigo-500 cursor-pointer min-h-[40px]"
+              >
+                <option value={10}>10 / page</option>
+                <option value={25}>25 / page</option>
+                <option value={50}>50 / page</option>
+                <option value={100}>100 / page</option>
+              </select>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer min-h-[40px]"
+              >
+                ← Prev
+              </button>
+              <span className="text-xs text-neutral-300 font-mono px-2">
+                Page {page} / {Math.max(1, Math.ceil(total / pageSize))}
+              </span>
+              <button
+                onClick={() => setPage((p) => (p * pageSize < total ? p + 1 : p))}
+                disabled={page * pageSize >= total}
+                className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 disabled:opacity-40 disabled:cursor-not-allowed text-neutral-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer min-h-[40px]"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Instant QR Code Modal */}

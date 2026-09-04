@@ -47,4 +47,53 @@ describe('app/api/admin/urls API Handler', () => {
     // Returns 400 or 500 depending on environment credentials
     expect([400, 500]).toContain(res.status);
   });
+
+  test('DELETE returns 404 when link ID does not exist (or 500 if no supabase)', async () => {
+    const req = new Request('http://localhost:3000/api/admin/urls?id=00000000-0000-0000-0000-000000000000', {
+      method: 'DELETE',
+      headers: { 'x-admin-key': expectedKey },
+    });
+    const res = await DELETE(req);
+    // 404 if the RPC actually ran and found no row, 500 if supabase isn't configured
+    expect([404, 500]).toContain(res.status);
+  });
+
+  test('GET returns pagination shape when authenticated', async () => {
+    const req = new Request('http://localhost:3000/api/admin/urls?page=1&pageSize=10', {
+      headers: { 'x-admin-key': expectedKey },
+    });
+    const res = await GET(req);
+    if (res.status === 200) {
+      const body = await res.json();
+      expect(body).toHaveProperty('page', 1);
+      expect(body).toHaveProperty('pageSize', 10);
+      expect(body).toHaveProperty('total');
+      expect(body).toHaveProperty('urls');
+      expect(Array.isArray(body.urls)).toBe(true);
+      expect(body.urls.length).toBeLessThanOrEqual(10);
+    }
+  });
+
+  test('GET clamps pageSize to max 100', async () => {
+    const req = new Request('http://localhost:3000/api/admin/urls?pageSize=99999', {
+      headers: { 'x-admin-key': expectedKey },
+    });
+    const res = await GET(req);
+    if (res.status === 200) {
+      const body = await res.json();
+      expect(body.pageSize).toBeLessThanOrEqual(100);
+    }
+  });
+
+  test('GET handles invalid page param gracefully', async () => {
+    const req = new Request('http://localhost:3000/api/admin/urls?page=-5&pageSize=abc', {
+      headers: { 'x-admin-key': expectedKey },
+    });
+    const res = await GET(req);
+    if (res.status === 200) {
+      const body = await res.json();
+      expect(body.page).toBe(1);
+      expect(body.pageSize).toBe(25); // default
+    }
+  });
 });
