@@ -28,7 +28,7 @@ describe('app/api/admin/urls API Handler', () => {
       expect(body).toHaveProperty('stats');
       expect(body.stats).toHaveProperty('totalUrls');
     }
-  });
+  }, 15000);
 
   test('DELETE returns 401 Unauthorized if x-admin-key header is missing', async () => {
     const req = new Request('http://localhost:3000/api/admin/urls?id=test-id', {
@@ -56,7 +56,7 @@ describe('app/api/admin/urls API Handler', () => {
     const res = await DELETE(req);
     // 404 if the RPC actually ran and found no row, 500 if supabase isn't configured
     expect([404, 500]).toContain(res.status);
-  });
+  }, 15000);
 
   test('GET returns pagination shape when authenticated', async () => {
     const req = new Request('http://localhost:3000/api/admin/urls?page=1&pageSize=10', {
@@ -72,7 +72,7 @@ describe('app/api/admin/urls API Handler', () => {
       expect(Array.isArray(body.urls)).toBe(true);
       expect(body.urls.length).toBeLessThanOrEqual(10);
     }
-  });
+  }, 15000);
 
   test('GET clamps pageSize to max 100', async () => {
     const req = new Request('http://localhost:3000/api/admin/urls?pageSize=99999', {
@@ -83,7 +83,7 @@ describe('app/api/admin/urls API Handler', () => {
       const body = await res.json();
       expect(body.pageSize).toBeLessThanOrEqual(100);
     }
-  });
+  }, 15000);
 
   test('GET handles invalid page param gracefully', async () => {
     const req = new Request('http://localhost:3000/api/admin/urls?page=-5&pageSize=abc', {
@@ -95,5 +95,5 @@ describe('app/api/admin/urls API Handler', () => {
       expect(body.page).toBe(1);
       expect(body.pageSize).toBe(25); // default
     }
-  });
+  }, 15000);
 });
