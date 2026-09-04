@@ -1,20 +1,16 @@
 import { supabase, isSupabaseConfigured, UrlRecord } from '@/lib/supabase';
-import { isValidCustomCode } from '@/lib/utils';
+import {
+  isValidCustomCode,
+  getClientIp,
+  getSafePublicOrigin,
+  isValidRecordId,
+  isValidClientId,
+  logSecurityEvent,
+} from '@/lib/utils';
 import { validateUrlSafety, fetchTargetTitleSafe, checkSafeBrowsing } from '@/lib/url-safety-server';
 import { rateLimit } from '@/lib/rateLimit';
 import { insertUrl } from '@/lib/url-storage';
 import { NextResponse } from 'next/server';
-
-function getClientIp(request: Request): string {
-  // ponytail: trust x-real-ip (set by NPM/nginx from $remote_addr) over
-  // x-forwarded-for — the client can forge the first XFF entry and
-  // rotate it to bypass per-IP rate limits.
-  return (
-    request.headers.get('x-real-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-    'unknown'
-  );
-}
 
 // ponytail: one place to gate on Supabase config. Returns either a
 // 500 response (caller should return it) or null (continue).
@@ -28,8 +24,15 @@ function requireSupabase(): NextResponse | null {
 
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
     // ponytail: rate limit on writes only — reads stay open.
-    if (!rateLimit(getClientIp(request))) {
+    if (!rateLimit(clientIp, 'shorten_post', 10, 60_000)) {
+      logSecurityEvent({
+        action: 'RATE_LIMIT_EXCEEDED',
+        ip: clientIp,
+        status: 'blocked',
+        detail: 'URL creation rate limit exceeded',
+      });
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
         { status: 429 }
@@ -52,7 +55,8 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { original_url, custom_code, expires_in } = body;
-    const clientId = request.headers.get('x-client-id') || body.client_id || null;
+    const rawClientId = request.headers.get('x-client-id') || body.client_id;
+    const clientId = rawClientId && isValidClientId(rawClientId) ? rawClientId.trim() : null;
     const currentHost = request.headers.get('host') || request.headers.get('x-forwarded-host') || undefined;
 
     // Validate URL safety, dangerous protocols, and self-loop attempts
@@ -146,9 +150,7 @@ async function finishCreate(
     });
   }
 
-  const origin = request.headers.get('origin') || request.headers.get('host') || '';
-  const protocol = origin.includes('localhost') || origin.includes('127.0.0.1') ? 'http' : 'https';
-  const baseUrl = origin ? (origin.startsWith('http') ? origin : `${protocol}://${origin}`) : '';
+  const baseUrl = getSafePublicOrigin(request);
   const shortUrl = `${baseUrl}/${record.short_code}`;
 
   return NextResponse.json(
@@ -168,7 +170,8 @@ async function finishCreate(
 
 export async function GET(request: Request) {
   try {
-    if (!rateLimit(getClientIp(request), 'shorten_get', 60, 60_000)) {
+    const clientIp = getClientIp(request);
+    if (!rateLimit(clientIp, 'shorten_get', 60, 60_000)) {
       return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
     }
 
@@ -176,11 +179,16 @@ export async function GET(request: Request) {
     if (supabaseError) return NextResponse.json({ urls: [], configured: false }, { status: 200 });
 
     const { searchParams } = new URL(request.url);
-    const clientId = request.headers.get('x-client-id') || searchParams.get('client_id');
+    const rawClientId = request.headers.get('x-client-id') || searchParams.get('client_id');
 
-    if (!clientId) {
+    if (!rawClientId) {
       return NextResponse.json({ urls: [], configured: true }, { status: 200 });
     }
+
+    if (!isValidClientId(rawClientId)) {
+      return NextResponse.json({ error: 'Invalid client ID format.' }, { status: 400 });
+    }
+    const clientId = rawClientId.trim();
 
     const { data, error } = await supabase
       .from('urls')
@@ -209,7 +217,8 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (!rateLimit(getClientIp(request), 'shorten_delete', 30, 60_000)) {
+    const clientIp = getClientIp(request);
+    if (!rateLimit(clientIp, 'shorten_delete', 30, 60_000)) {
       return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
     }
 
@@ -218,20 +227,29 @@ export async function DELETE(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const clientId = request.headers.get('x-client-id') || searchParams.get('client_id');
+    const rawClientId = request.headers.get('x-client-id') || searchParams.get('client_id');
 
-    if (!id || !clientId || typeof clientId !== 'string' || clientId.trim().length === 0) {
+    if (!id || !isValidRecordId(id)) {
       return NextResponse.json(
-        { error: 'Record ID and client ID are required to delete a link.' },
+        { error: 'Record ID is required and must be a valid ID.' },
         { status: 400 }
       );
     }
+
+    if (!rawClientId || !isValidClientId(rawClientId)) {
+      return NextResponse.json(
+        { error: 'Client ID is required and must be a valid ID.' },
+        { status: 400 }
+      );
+    }
+
+    const clientId = rawClientId.trim();
 
     const { error } = await supabase
       .from('urls')
       .delete()
       .eq('id', id)
-      .eq('client_id', clientId.trim());
+      .eq('client_id', clientId);
 
     if (error) {
       console.error('Supabase error deleting URL:', error);
@@ -240,6 +258,13 @@ export async function DELETE(request: Request) {
         { status: 500 }
       );
     }
+
+    logSecurityEvent({
+      action: 'CLIENT_DELETE_URL',
+      ip: clientIp,
+      status: 'allowed',
+      detail: `Client deleted URL record id ${id}`,
+    });
 
     return NextResponse.json({ success: true, id }, { status: 200 });
   } catch (err) {

@@ -1,5 +1,5 @@
 import dns from 'node:dns';
-import { isBlockedHostname, normalizeUrl, type SafetyResult } from './utils';
+import { isBlockedHostname, normalizeUrl, logSecurityEvent, type SafetyResult } from './utils';
 
 const MAX_TITLE_BYTES = 64 * 1024; // ponytail: cap the title HTML fetch
 
@@ -12,12 +12,24 @@ const MAX_TITLE_BYTES = 64 * 1024; // ponytail: cap the title HTML fetch
  * from a client component.
  */
 
-/** Resolve one A record (IPv4) for a hostname, or null. */
+/** Resolve all IP records for a hostname, ensuring ALL are public, or null. */
 export async function resolvePublicIp(hostname: string): Promise<string | null> {
   try {
-    const { address } = await dns.promises.lookup(hostname, { family: 4 });
-    if (isBlockedHostname(address)) return null;
-    return address;
+    if (isBlockedHostname(hostname)) return null;
+
+    const addresses = await dns.promises.lookup(hostname, { all: true });
+    if (!addresses || addresses.length === 0) return null;
+
+    // Reject if ANY returned address is internal or blocked (SSRF & DNS rebinding protection)
+    for (const entry of addresses) {
+      if (isBlockedHostname(entry.address)) {
+        return null;
+      }
+    }
+
+    // Prefer IPv4 if available, otherwise IPv6
+    const ipv4 = addresses.find((a) => a.family === 4);
+    return ipv4 ? ipv4.address : addresses[0].address;
   } catch {
     return null;
   }
@@ -149,6 +161,7 @@ export async function fetchTargetTitleSafe(urlString: string): Promise<string | 
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .replace(/\s+/g, ' ')
+      .replace(/[\x00-\x1F\x7F\u200B-\u200D\uFEFF\u202A-\u202E]/g, '')
       .trim();
 
     return decoded.length > 100 ? `${decoded.substring(0, 97)}...` : decoded;
@@ -197,6 +210,11 @@ export async function validateUrlSafety(
   }
 
   if (isBlockedHostname(hostname)) {
+    logSecurityEvent({
+      action: 'SSRF_BLOCKED',
+      status: 'blocked',
+      detail: `Blocked internal or private hostname: ${hostname}`,
+    });
     return {
       safe: false,
       error: 'Internal, loopback, or link-local addresses cannot be shortened.',
@@ -205,6 +223,11 @@ export async function validateUrlSafety(
 
   const ip = await resolvePublicIp(hostname);
   if (!ip) {
+    logSecurityEvent({
+      action: 'DNS_RESOLVE_FAILED_OR_BLOCKED',
+      status: 'blocked',
+      detail: `Hostname could not be resolved to safe public IP: ${hostname}`,
+    });
     return { safe: false, error: 'Hostname could not be resolved.' };
   }
 
@@ -255,6 +278,11 @@ export async function checkSafeBrowsing(url: string): Promise<SafetyResult> {
 
     const data = (await res.json()) as { matches?: unknown[] };
     if (Array.isArray(data.matches) && data.matches.length > 0) {
+      logSecurityEvent({
+        action: 'SAFE_BROWSING_BLOCKED',
+        status: 'blocked',
+        detail: `URL flagged by Google Safe Browsing: ${url}`,
+      });
       return {
         safe: false,
         error: 'URL is flagged by Google Safe Browsing and cannot be shortened.',

@@ -1,5 +1,21 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === 'development';
+
+const cspDirectives = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co https://api.qrserver.com https://safebrowsing.googleapis.com",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+];
+
 const securityHeaders = [
   {
     key: 'X-DNS-Prefetch-Control',
@@ -27,7 +43,7 @@ const securityHeaders = [
   },
   {
     key: 'Content-Security-Policy',
-    value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.qrserver.com https://safebrowsing.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+    value: cspDirectives.join('; '),
   },
 ];
 

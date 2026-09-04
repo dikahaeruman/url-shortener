@@ -44,7 +44,9 @@ export function rateLimit(
   const now = Date.now();
   cleanupStaleBuckets(now);
 
-  const key = `${ip}::${bucketKey}`;
+  const safeIp = (ip || 'unknown').slice(0, 45).replace(/[^0-9a-zA-Z:._-]/g, '');
+  const safeBucket = (bucketKey || 'default').slice(0, 32).replace(/[^0-9a-zA-Z_-]/g, '');
+  const key = `${safeIp}::${safeBucket}`;
   const bucket = buckets.get(key) ?? { tokens: max, lastRefill: now };
 
   const elapsed = now - bucket.lastRefill;

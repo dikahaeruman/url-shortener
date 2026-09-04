@@ -1,25 +1,36 @@
 import { NextResponse } from 'next/server';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { validateUrlSafety } from '@/lib/url-safety-server';
-import { isBlockedHostname } from '@/lib/utils';
+import { isBlockedHostname, getSafePublicOrigin, getClientIp, logSecurityEvent } from '@/lib/utils';
+import { rateLimit } from '@/lib/rateLimit';
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ short_code: string }> }
 ) {
   const { short_code } = await params;
+  const publicOrigin = getSafePublicOrigin(_request);
+  const clientIp = getClientIp(_request);
 
-  // ponytail: build the redirect URL from the forwarded host so the
-  // client lands back on the public domain (request.url inside the
-  // standalone runtime resolves to 0.0.0.0, which would loop).
-  const publicHost =
-    _request.headers.get('x-forwarded-host') ?? _request.headers.get('host') ?? '';
-  const publicProto =
-    _request.headers.get('x-forwarded-proto') ??
-    (publicHost.startsWith('localhost') || publicHost.startsWith('127.') ? 'http' : 'https');
-  const publicOrigin = publicHost ? `${publicProto}://${publicHost}` : new URL(_request.url).origin;
+  // Rate limit on redirects: 120 req/min per IP to prevent DB connection exhaustion
+  if (!rateLimit(clientIp, 'redirect_get', 120, 60_000)) {
+    logSecurityEvent({
+      action: 'RATE_LIMIT_EXCEEDED',
+      ip: clientIp,
+      status: 'blocked',
+      detail: 'Redirect rate limit exceeded',
+    });
+    return new NextResponse('Too many requests. Please try again later.', { status: 429 });
+  }
 
-  if (!short_code || !isSupabaseConfigured()) {
+  // Validate short code format before DB query
+  if (
+    !short_code ||
+    typeof short_code !== 'string' ||
+    short_code.length > 64 ||
+    !/^[a-zA-Z0-9_.-]+$/.test(short_code) ||
+    !isSupabaseConfigured()
+  ) {
     return NextResponse.redirect(new URL('/not-found', publicOrigin));
   }
 
@@ -37,7 +48,9 @@ export async function GET(
   if (data.expires_at) {
     const expiresTime = new Date(data.expires_at).getTime();
     if (expiresTime < Date.now()) {
-      return NextResponse.redirect(new URL(`/expired?code=${short_code}`, publicOrigin));
+      return NextResponse.redirect(
+        new URL(`/expired?code=${encodeURIComponent(short_code)}`, publicOrigin)
+      );
     }
   }
 
@@ -48,6 +61,12 @@ export async function GET(
       return NextResponse.redirect(new URL('/not-found', publicOrigin));
     }
     if (isBlockedHostname(parsed.hostname.toLowerCase())) {
+      logSecurityEvent({
+        action: 'SSRF_BLOCKED',
+        ip: clientIp,
+        status: 'blocked',
+        detail: `Redirect blocked for private hostname: ${parsed.hostname}`,
+      });
       return NextResponse.redirect(new URL('/not-found', publicOrigin));
     }
   } catch {
@@ -72,5 +91,7 @@ export async function GET(
     })
     .catch((err: unknown) => console.error('redirect safety check failed:', err));
 
-  return NextResponse.redirect(data.original_url, { status: 302 });
+  const response = NextResponse.redirect(data.original_url, { status: 302 });
+  response.headers.set('Referrer-Policy', 'no-referrer');
+  return response;
 }

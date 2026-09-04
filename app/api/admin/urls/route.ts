@@ -3,17 +3,7 @@ import crypto from 'crypto';
 import { supabase, isSupabaseConfigured, UrlRecord } from '@/lib/supabase';
 import { rateLimit } from '@/lib/rateLimit';
 import { maybeCleanupExpired } from '@/lib/cleanup';
-
-function getClientIp(request: Request): string {
-  // ponytail: trust x-real-ip (set by NPM/nginx from $remote_addr) over
-  // x-forwarded-for — the client can forge the first XFF entry and
-  // rotate it to bypass per-IP rate limits.
-  return (
-    request.headers.get('x-real-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-    'unknown'
-  );
-}
+import { getClientIp, isValidRecordId, logSecurityEvent } from '@/lib/utils';
 
 function getAdminKey(): string | null {
   const key = process.env.ADMIN_SECRET_KEY;
@@ -23,6 +13,10 @@ function getAdminKey(): string | null {
     // `bun dev` works without a `.env` file.
     if (process.env.NODE_ENV === 'production') return null;
     return key || 'pendekin-admin-2026';
+  }
+  if (process.env.NODE_ENV === 'production' && key.length < 16) {
+    console.error('CRITICAL: ADMIN_SECRET_KEY must be at least 16 characters in production.');
+    return null;
   }
   return key;
 }
@@ -34,26 +28,60 @@ function verifyAdmin(request: Request): boolean {
   const adminKey = request.headers.get('x-admin-key');
   if (!adminKey || typeof adminKey !== 'string') return false;
 
-  const a = Buffer.from(adminKey);
-  const b = Buffer.from(expectedKey);
+  // OWASP A02: SHA-256 fixed-length buffers eliminate timing side-channels and length leaks
+  const hashA = crypto.createHash('sha256').update(adminKey).digest();
+  const hashB = crypto.createHash('sha256').update(expectedKey).digest();
 
-  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(hashA, hashB);
+}
 
-  return crypto.timingSafeEqual(a, b);
+function checkAdminAuth(request: Request, clientIp: string): { ok: true } | { ok: false; response: NextResponse } {
+  // 1. General admin rate limit per IP
+  if (!rateLimit(clientIp, 'admin', 30, 60_000)) {
+    logSecurityEvent({
+      action: 'RATE_LIMIT_EXCEEDED',
+      ip: clientIp,
+      status: 'blocked',
+      detail: 'Admin general rate limit exceeded',
+    });
+    return { ok: false, response: NextResponse.json({ error: 'Too many requests.' }, { status: 429 }) };
+  }
+
+  // 2. Verify key
+  if (!verifyAdmin(request)) {
+    // Only consume failure tokens when authentication actually fails
+    const notLocked = rateLimit(clientIp, 'admin_auth_failures', 10, 300_000);
+    logSecurityEvent({
+      action: 'ADMIN_AUTH_FAILED',
+      ip: clientIp,
+      status: 'blocked',
+      detail: notLocked ? 'Unauthorized admin access attempt' : 'Admin brute-force threshold exceeded (locked)',
+    });
+
+    if (!notLocked) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: 'Too many failed login attempts. Please try again in 5 minutes.' },
+          { status: 429 }
+        ),
+      };
+    }
+
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized admin access.' }, { status: 401 }),
+    };
+  }
+
+  return { ok: true };
 }
 
 export async function GET(request: Request) {
   try {
-    // ponytail: rate limit on admin reads too — same bucket as writes
-    // would let an attacker DoS the bucket cheaply with admin calls.
-    // Use a separate per-IP cap here. Key gate is the first line of
-    // defense; this is the second.
-    if (!rateLimit(getClientIp(request), 'admin', 30, 60_000)) {
-      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
-    }
-    if (!verifyAdmin(request)) {
-      return NextResponse.json({ error: 'Unauthorized admin access.' }, { status: 401 });
-    }
+    const clientIp = getClientIp(request);
+    const auth = checkAdminAuth(request, clientIp);
+    if (!auth.ok) return auth.response;
 
     // ponytail: lazy cleanup — runs at most once per 30 days across
     // the process, in the background so it doesn't add latency.
@@ -140,12 +168,9 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (!rateLimit(getClientIp(request), 'admin', 30, 60_000)) {
-      return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
-    }
-    if (!verifyAdmin(request)) {
-      return NextResponse.json({ error: 'Unauthorized admin access.' }, { status: 401 });
-    }
+    const clientIp = getClientIp(request);
+    const auth = checkAdminAuth(request, clientIp);
+    if (!auth.ok) return auth.response;
 
     if (!isSupabaseConfigured()) {
       return NextResponse.json({ error: 'Supabase credentials missing.' }, { status: 500 });
@@ -153,8 +178,8 @@ export async function DELETE(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'Link ID parameter is required.' }, { status: 400 });
+    if (!id || !isValidRecordId(id)) {
+      return NextResponse.json({ error: 'Valid link ID parameter is required.' }, { status: 400 });
     }
 
     // ponytail: use the SECURITY DEFINER admin_delete_url RPC because
@@ -176,6 +201,13 @@ export async function DELETE(request: Request) {
     if (deleted === 0) {
       return NextResponse.json({ error: 'Link not found.' }, { status: 404 });
     }
+
+    logSecurityEvent({
+      action: 'ADMIN_DELETE_URL',
+      ip: clientIp,
+      status: 'allowed',
+      detail: `Admin deleted URL record id ${id}`,
+    });
 
     return NextResponse.json({ success: true, id });
   } catch (err) {
